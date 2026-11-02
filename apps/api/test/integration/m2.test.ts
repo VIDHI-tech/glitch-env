@@ -39,6 +39,7 @@ test('M2 learning journey and isolation',async t=>{
   const roadA=(await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json(),roadB=(await get(`/api/v1/enrollments/${bEnrollment}/roadmap`,bCookie)).json();assert.equal(roadA.percent,0);assert.equal(roadB.percent,0);assert.equal(roadA.currentUnitId,units[0]);
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,bCookie)).statusCode,404);
   await assert.rejects(db.pool.query('UPDATE curriculum_release_units SET content=$1 WHERE id=$2',['tamper',units[0]]));
+  await assert.rejects(db.pool.query("UPDATE enrollments SET state='invalid' WHERE id=$1",[aEnrollment]));
  });
  await t.test('video watch coverage, new login resume and independent unlocks',async()=>{
   const start=await post(`/api/v1/release-units/${units[0]}/video-sessions`,{},aCookie);assert.equal(start.statusCode,201,start.body);let sid=start.json().id;assert.equal(start.json().adapter,'test-video');

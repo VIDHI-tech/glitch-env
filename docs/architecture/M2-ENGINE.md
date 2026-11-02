@@ -67,4 +67,4 @@ M2 returns `adapter: test-video` and the pinned duration; no media URL or Cloudf
 
 ## Migration and rollout
 
-Migrations `0005` and `0006` create the M2 schema and portfolio enrollment link; `0007` adds integrity constraints and immutable-release triggers. Apply from an empty disposable PostgreSQL database first. No production database or SQLite data was migrated. The SQLite importer, backup and rollback rehearsal remain required before a cutover. Keep the old application available until feature parity and data migration are verified.
+Migrations `0005` and `0006` create the M2 schema and portfolio enrollment link; `0007` adds integrity constraints and immutable-release triggers; `0008` constrains states and policy values. Apply from an empty disposable PostgreSQL database first. No production database or SQLite data was migrated. The SQLite importer, backup and rollback rehearsal remain required before a cutover. Keep the old application available until feature parity and data migration are verified.
