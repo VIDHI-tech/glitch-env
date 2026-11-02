@@ -1,0 +1,2 @@
+ALTER TABLE "portfolio_artifacts" ADD COLUMN "enrollment_id" uuid;--> statement-breakpoint
+ALTER TABLE "portfolio_artifacts" ADD CONSTRAINT "portfolio_artifacts_enrollment_id_enrollments_id_fk" FOREIGN KEY ("enrollment_id") REFERENCES "public"."enrollments"("id") ON DELETE no action ON UPDATE no action;

@@ -3,16 +3,19 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { createDatabase } from '@glitch/db';
 import { healthSchema } from '@glitch/shared';
 import { createAuth } from './auth.js';
-import { productionMailer, type Mailer } from './mail.js';
+import { developmentMailer, productionMailer, type Mailer } from './mail.js';
 import { registerWorkspaceRoutes } from './workspace.js';
-export function buildApp(options:{databaseUrl?:string;secret?:string;origin?:string;mailer?:Mailer}={}) {
+import { registerLearningRoutes } from './learning.js';
+export function buildApp(options:{databaseUrl?:string;secret?:string;origin?:string;mailer?:Mailer;clock?:()=>number}={}) {
   const app = Fastify({logger:{redact:['req.url','req.headers.authorization','req.headers.cookie','req.body.password','res.headers.set-cookie']}});
   const databaseUrl=options.databaseUrl||process.env.DATABASE_URL;
   const origin=options.origin||process.env.APP_ORIGIN;
   const secret=options.secret||process.env.BETTER_AUTH_SECRET;
   const database=databaseUrl?createDatabase(databaseUrl):null;
   // Auth routes remain unavailable until a database, migration and secret exist.
-  const auth=database&&origin&&secret?createAuth(database.db,origin,secret,options.mailer??productionMailer()):null;
+  const devCapture=!options.mailer&&database&&origin&&secret&&process.env.MAIL_CAPTURE==='1'?developmentMailer():null;
+  const auth=database&&origin&&secret?createAuth(database.db,origin,secret,options.mailer??devCapture??productionMailer()):null;
+  if(devCapture)app.get('/__dev/mail',async(request,reply)=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(request.ip)?devCapture.messages:reply.code(403).send({code:'FORBIDDEN',message:'Local access only'}));
   app.addHook('onRequest',async(request,reply)=>{
     if(request.url.startsWith('/api/v1/')&&!['GET','HEAD','OPTIONS'].includes(request.method)){
       if(!origin||request.headers.origin!==origin||request.headers['sec-fetch-site']==='cross-site')
@@ -39,7 +42,7 @@ export function buildApp(options:{databaseUrl?:string;secret?:string;origin?:str
     if(!session)return reply.code(401).send({code:'UNAUTHENTICATED',message:'Sign in to continue'});
     return {id:session.user.id,name:session.user.name,email:session.user.email};
   });
-  if(database&&auth)registerWorkspaceRoutes(app,database,auth);
+  if(database&&auth){registerWorkspaceRoutes(app,database,auth);registerLearningRoutes(app,database,auth,options.clock);}
   app.addHook('onClose',async()=>{await database?.pool.end();});
   return app;
 }

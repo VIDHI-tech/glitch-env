@@ -16,7 +16,8 @@
     "m1:typecheck": "pnpm -r --filter \"@glitch/*\" typecheck",
     "m1:build": "pnpm --filter @glitch/api build && pnpm --filter @glitch/web build",
     "test:e2e": "playwright test",
-    "test:m1:integration": "pnpm --filter @glitch/api test:integration"
+    "test:m1:integration": "pnpm --filter @glitch/api test:integration",
+    "test:m2:integration": "pnpm --filter @glitch/api test:m2:integration"
   },
   "packageManager": "pnpm@10.20.0",
   "devDependencies": {

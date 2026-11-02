@@ -80,6 +80,9 @@ test('Ownership and assigned staff access are enforced by PostgreSQL routes',asy
  assert.equal((await post('/api/v1/admin/roles',{userId:i,role:'instructor'},rootCookie)).statusCode,200);
  const course=await post('/api/v1/admin/courses',{title:'M1 Ownership Test'},rootCookie);assert.equal(course.statusCode,200,course.body);const courseId=course.json().id;
  await db.pool.query("UPDATE courses SET state='published' WHERE id=$1",[courseId]);
+ await db.pool.query('INSERT INTO curriculum_releases(course_id,release_number,published_by) VALUES($1,1,$2)',[courseId,root]);
+ assert.equal((await post('/api/v1/admin/enrollments',{studentId:a,courseId},rootCookie)).statusCode,201);
+ assert.equal((await post('/api/v1/admin/enrollments',{studentId:b,courseId},rootCookie)).statusCode,201);
  const create=await post('/api/v1/portfolio/artifacts',{courseId,title:'Private work',body:'Student A evidence'},aCookie);assert.equal(create.statusCode,201,create.body);const artifact=create.json();
  assert.equal((await get(`/api/v1/portfolio/artifacts/${artifact.id}`,aCookie)).statusCode,200);
  assert.equal((await post('/api/v1/portfolio/artifacts',{courseId,title:'Blocked',body:'x'},aCookie)).statusCode,201);

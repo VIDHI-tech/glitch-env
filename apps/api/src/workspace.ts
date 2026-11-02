@@ -66,9 +66,9 @@ export function registerWorkspaceRoutes(app:FastifyInstance,database:Database,au
   const parsed=artifactInput.safeParse(request.body);if(!parsed.success)return invalid(reply);
   const role=await pool.query("SELECT 1 FROM user_role_assignments WHERE user_id=$1 AND role='student'",[actor]);
   if(!role.rowCount)return reply.code(403).send({code:'FORBIDDEN',message:'Student role required'});
-  const course=await pool.query("SELECT 1 FROM courses WHERE id=$1 AND state='published'",[parsed.data.courseId]);
-  if(!course.rowCount)return reply.code(404).send({code:'NOT_FOUND',message:'Published course not found'});
-  const result=await pool.query('INSERT INTO portfolio_artifacts(student_id,course_id,title,body) VALUES($1,$2,$3,$4) RETURNING id,course_id,title,body,revision',[actor,parsed.data.courseId,parsed.data.title,parsed.data.body]);
+  const course=await pool.query("SELECT id FROM enrollments WHERE student_id=$1 AND course_id=$2 AND state='active'",[actor,parsed.data.courseId]);
+  if(!course.rowCount)return reply.code(404).send({code:'NOT_FOUND',message:'Active enrollment not found'});
+  const result=await pool.query('INSERT INTO portfolio_artifacts(student_id,course_id,enrollment_id,title,body) VALUES($1,$2,$3,$4,$5) RETURNING id,course_id,title,body,revision',[actor,parsed.data.courseId,course.rows[0].id,parsed.data.title,parsed.data.body]);
   return reply.code(201).send(result.rows[0]);
  });
  app.get<{Params:{id:string}}>('/api/v1/portfolio/artifacts/:id',async(request,reply)=>{
@@ -82,9 +82,9 @@ export function registerWorkspaceRoutes(app:FastifyInstance,database:Database,au
   const actor=await identity(request,reply);if(!actor)return;
   if(!uuid.safeParse(request.params.id).success)return reply.code(404).send({code:'NOT_FOUND',message:'Artifact not found'});
   const parsed=revisionInput.safeParse(request.body);if(!parsed.success)return invalid(reply);
-  const result=await pool.query('UPDATE portfolio_artifacts SET title=$1,body=$2,revision=revision+1,updated_at=now() WHERE id=$3 AND student_id=$4 AND revision=$5 RETURNING id,title,body,revision',[parsed.data.title,parsed.data.body,request.params.id,actor,parsed.data.revision]);
+  const result=await pool.query("UPDATE portfolio_artifacts SET title=$1,body=$2,revision=revision+1,updated_at=now() WHERE id=$3 AND student_id=$4 AND revision=$5 AND EXISTS (SELECT 1 FROM enrollments e WHERE e.id=portfolio_artifacts.enrollment_id AND e.student_id=$4 AND e.state='active') RETURNING id,title,body,revision",[parsed.data.title,parsed.data.body,request.params.id,actor,parsed.data.revision]);
   if(result.rowCount)return result.rows[0];
-  const exists=await pool.query('SELECT 1 FROM portfolio_artifacts WHERE id=$1 AND student_id=$2',[request.params.id,actor]);
+  const exists=await pool.query("SELECT 1 FROM portfolio_artifacts p JOIN enrollments e ON e.id=p.enrollment_id AND e.state='active' WHERE p.id=$1 AND p.student_id=$2",[request.params.id,actor]);
   return reply.code(exists.rowCount?409:404).send({code:exists.rowCount?'REVISION_CONFLICT':'NOT_FOUND',message:exists.rowCount?'Reload before saving':'Artifact not found'});
  });
  app.get<{Params:{studentId:string;courseId:string;artifactId:string}}>('/api/v1/staff/students/:studentId/courses/:courseId/artifacts/:artifactId',async(request,reply)=>{

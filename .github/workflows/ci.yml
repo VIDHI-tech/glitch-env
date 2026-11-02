@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/m0-baseline-architecture, feat/m1-foundation]
+    branches: [main, feat/m0-baseline-architecture, feat/m1-foundation, feat/m2-learning-engine]
   pull_request:
 
 jobs:
@@ -39,5 +39,8 @@ jobs:
       - run: pnpm m1:build
       - run: pnpm --filter @glitch/api test
       - run: pnpm test:m1:integration
+      - run: pnpm test:m2:integration
       - run: npm run check
       - run: npm test
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
