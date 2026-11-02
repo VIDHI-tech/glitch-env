@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/m0-baseline-architecture, feat/m1-foundation]
+  pull_request:
+
+jobs:
+  m1-and-legacy:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: glitch_test
+          POSTGRES_PASSWORD: glitch_test
+          POSTGRES_DB: glitch_m1_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U glitch_test -d glitch_m1_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://glitch_test:glitch_test@127.0.0.1:5432/glitch_m1_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pnpm m1:typecheck
+      - run: pnpm m1:build
+      - run: pnpm --filter @glitch/api test
+      - run: pnpm test:m1:integration
+      - run: npm run check
+      - run: npm test

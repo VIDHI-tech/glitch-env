@@ -37,4 +37,14 @@ Screenshot: `dashboard-qa.png` is the test fixture, not fabricated production ac
 
 Limitations: manual browser checks are not an automated UI regression suite. Browser playback through an entire video and a second physical device were not exercised; server-side interval/resume and new-session behavior are tested automatically.
 
-Final run: **22 tests passed, 0 failed, 0 skipped**. `npm run check` passed. This is a standalone implementation in the initially empty workspace. The subsequently supplied `VIDHI-tech/glitch-env` repository was verified empty through the GitHub API. Local Git is initialized on `main`, with that repository configured as `origin`. No pre-existing framework or authentication was available to merge. No push was performed: the connected GitHub account reports `pull: true`, `push: false`. Source files remain local and uncommitted.
+M0 baseline run: **22 tests passed, 0 failed, 0 skipped**. `npm run check` passed. The working SQLite application is tracked on `main`. M1 adds a separate PostgreSQL API and React foundation; see `docs/architecture/M1-STATUS.md` and `tests/e2e/artifacts/README.md` for current evidence. No production database was modified.
+
+## M1 local verification — 3 November 2026
+
+- `pnpm m1:typecheck` and `pnpm m1:build`: passed.
+- API unit tests: **1 passed, 0 failed, 0 skipped**.
+- Disposable PostgreSQL integration tests: **4 passed, 0 failed, 0 skipped**. Empty migration/reapply/constraints, auth lifecycle, registration rollback, staff and student ownership were exercised. The command exits nonzero when `TEST_DATABASE_URL` is absent.
+- Legacy `npm test`: **22 passed, 0 failed, 0 skipped**. `npm run check` passed.
+- Playwright Chromium: **3 passed, 0 failed, 0 skipped**. Four real-page screenshots and three traces are stored in `tests/e2e/artifacts/`.
+
+These are local checks. The GitHub Actions run must pass separately after push. Production Resend delivery, production PostgreSQL migration, and migration of the old student environment were not exercised.

@@ -18,7 +18,7 @@ All existing endpoints are same-origin `/api/*` JSON unless noted. Auth: HttpOnl
 
 ## Target `/api/v1` REST contract
 
-Each endpoint uses Zod request/response schemas in `packages/shared` and generated OpenAPI in M1/M2. All private IDs are UUIDs; 401 means no valid session, 403 means authenticated but ineligible, 404 hides records outside scope, 409 means version/concurrency conflict, 422 means validation failure. Mutations use CSRF/origin protection. Pagination uses opaque cursors. Idempotency keys apply to uploads, reviews, release migrations and webhooks.
+This is a planned M1/M2 contract, not a list of live endpoints. See [m1-api.md](m1-api.md) for the routes currently implemented. The target uses Zod request/response schemas and generated OpenAPI. All private IDs are UUIDs; 401 means no valid session, 403 means authenticated but ineligible, 404 hides records outside scope, 409 means version/concurrency conflict, 422 means validation failure. Mutations use origin protection. Pagination uses opaque cursors. Idempotency keys apply to uploads, reviews, release migrations and webhooks.
 
 | Method | Path | Request / response and ownership |
 | --- | --- | --- |

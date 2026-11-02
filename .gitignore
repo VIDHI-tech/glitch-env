@@ -11,3 +11,6 @@ apps/web/node_modules/
 apps/api/node_modules/
 packages/*/node_modules/
 *.tsbuildinfo
+
+/tests/e2e/artifacts/report/
+/tests/e2e/artifacts/results/

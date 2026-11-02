@@ -1,26 +1,22 @@
-# M1 foundation status — in progress
+# M1 foundation status — review candidate
 
-Base: M0 commit `78b1f14` on `feat/m0-baseline-architecture`. Branch: `feat/m1-foundation`; this is a stacked branch until M0 merges. No pull request or deployment yet.
+M1 is on `feat/m1-foundation`, stacked on the M0 `feat/m0-baseline-architecture` branch. The original SQLite application on `main` remains the working student environment. The React page is an engineering foundation and is not a migrated dashboard.
 
-## Implemented and tested
+## Implemented
 
-- pnpm workspace with `apps/api`, `apps/web`, `packages/shared`, `packages/db`, `packages/ui`.
-- Fastify/TypeScript API shell with liveness, readiness, `/api/v1/health`, Better Auth routing boundary and `/api/v1/me`. Without database, origin and secret, auth fails closed with 503. Readiness queries both auth and course tables.
-- Drizzle PostgreSQL client, first six curriculum tables, generated Better Auth UUID schema (user/session/account/verification) and role/staff assignment tables. Two committed SQL migrations were applied successfully to a disposable local PostgreSQL database; no production migration applied.
-- React/TypeScript/Vite shell that retains the existing dark/purple visual identity; Vite proxies `/api` and `/health` to Fastify in local development.
-- Shared Zod health/error/UUID schemas. Direct dependencies pinned in `pnpm-lock.yaml`.
-- `pnpm -r --filter '@glitch/*' typecheck` and API/web builds passed. API tests passed 2/2, including real PostgreSQL registration, ready-state and unauthenticated access checks. Existing application tests passed 22/22 in the M0 baseline; legacy application files were not altered in M1.
+- pnpm workspace with Fastify API, React/Vite frontend, shared schemas, and Drizzle PostgreSQL package.
+- Better Auth registration, verified email sign-in, persistent sessions, logout, expiry, password reset, and session revocation. `CaptureMailer` supplies deterministic tests; the production adapter calls Resend with environment credentials.
+- Every user insertion creates a `student` role through a database trigger in the same transaction. Public signup payloads cannot grant staff roles. A one-time operator CLI promotes the first verified super administrator. Only a super administrator can grant further privileged roles and staff assignments; those operations write audit events.
+- Private `portfolio_artifacts` resource with create/read/update, session-derived ownership, optimistic revisions, exact-origin mutation checks, and course/student scoped instructor read access. Removed instructor role immediately removes staff access.
+- Drizzle migrations `0000`–`0004` cover auth/curriculum foundation, portfolio resource, default-role trigger, and audit events. Disposable PostgreSQL tests apply them from empty, reapply them, check constraints, and verify transaction rollback.
+- GitHub Actions checks typecheck, build, API unit tests, required PostgreSQL integration tests, and the legacy regression suite. Playwright captures the running old app's student/admin screens and new React foundation.
 
-## Partially implemented / unverified
+## Verification
 
-- Better Auth registration against disposable PostgreSQL is verified. Login, email verification delivery, password reset and session lifecycle tests are not yet complete. No user journey should be moved to the M1 shell yet.
-- Drizzle migrations contain the curriculum foundation, auth core and initial role tables. M0's full target schema still needs implementing in reviewed migrations.
-- New React shell is an engineering marker, not a replacement student/admin product. Existing app remains the working local product and rollback path.
+Run the commands in [M1-TESTING.md](M1-TESTING.md). The local verification record is in [VERIFICATION.md](../VERIFICATION.md), and browser images/traces are in `tests/e2e/artifacts/`. Required PostgreSQL tests fail when `TEST_DATABASE_URL` is absent. No production database was changed.
 
-## Dependencies and limitations
+## Remaining scope
 
-- `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, and a disposable PostgreSQL database are needed for M1 integration tests. The current local test database at `/private/tmp/glitch-m1-postgres` contains only disposable test data. Email verification also needs an actual delivery adapter; no live provider is claimed.
-- The latest pnpm 12 rejected several dependencies under its minimum release age supply-chain policy. The workspace is pinned to pnpm 10.20.0, which installed the exact versions in the lockfile. The policy was not disabled.
-- No credentials were committed, no external database was altered, and no deployment occurred.
-
-Next: generate Better Auth schema from its pinned config, add role tables and ownership policy, complete registration/login and privacy tests against disposable PostgreSQL, then build the real React student interface and run browser tests. M1 cannot be called complete until those gates pass.
+- Live Resend delivery requires configured credentials and a verified sending domain; automated tests use captured mail.
+- The complete M0 target schema, SQLite importer, student progression engine, media services, and full React student/admin UI belong to later work and are not claimed in M1.
+- CI must run on GitHub after push. The local disposable database and browser results do not substitute for a passing remote check.

@@ -46,3 +46,19 @@ export const staffStudentAssignments=pgTable('staff_student_assignments',{
  assignedBy:uuid('assigned_by').notNull().references(()=>user.id),
  createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
 },t=>[uniqueIndex('staff_student_course_unique').on(t.staffId,t.studentId,t.courseId)]);
+export const portfolioArtifacts=pgTable('portfolio_artifacts',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ studentId:uuid('student_id').notNull().references(()=>user.id),
+ courseId:uuid('course_id').notNull().references(()=>courses.id),
+ title:text('title').notNull(),body:text('body').notNull().default(''),
+ revision:integer('revision').notNull().default(1),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+ updatedAt:timestamp('updated_at',{withTimezone:true}).notNull().defaultNow()
+},t=>[uniqueIndex('portfolio_student_course_id').on(t.studentId,t.courseId,t.id)]);
+export const auditEvents=pgTable('audit_events',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ actorId:uuid('actor_id').notNull().references(()=>user.id),
+ action:text('action').notNull(),targetId:uuid('target_id').notNull(),
+ detail:text('detail').notNull().default(''),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
