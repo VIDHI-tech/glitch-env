@@ -7,6 +7,7 @@ All routes are under `/api/v1`, use the Better Auth session, and require the exa
 | POST | `/admin/courses/:id/releases` | Super administrator publishes ordered ready unit versions and conditions atomically; returns release and unit IDs |
 | POST | `/admin/enrollments` | Super administrator enrolls a verified student in the latest release |
 | POST | `/admin/enrollments/:id/suspend` | Super administrator suspends learning access, preserving work |
+| POST | `/admin/enrollments/:id/resume` | Super administrator restores a suspended enrollment and its pinned release |
 | GET | `/enrollments` | Own courses and pinned releases |
 | GET | `/enrollments/:id/roadmap` | Own unit states, current required unit, course/day percentages |
 | GET | `/enrollments/:id/activity?cursor=` | Own paginated learning history |

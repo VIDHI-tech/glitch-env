@@ -89,5 +89,42 @@ test('M2 learning journey and isolation',async t=>{
   assert.equal((await put(`/api/v1/release-units/${units[2]}/note`,{body:'Blocked',revision:1},aCookie)).statusCode,404);
   assert.equal((await request('PATCH',`/api/v1/portfolio/artifacts/${artifactId}`,{title:'Blocked',body:'Cannot change',revision:1},aCookie)).statusCode,404);
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/activity`,aCookie)).statusCode,200);
+  assert.equal((await post(`/api/v1/admin/enrollments/${aEnrollment}/resume`,{},rootCookie)).statusCode,200);
+  assert.equal((await get(`/api/v1/release-units/${units[0]}`,aCookie)).statusCode,200);
+ });
+ await t.test('feedback acknowledgement gates continuation',async()=>{
+  const course=(await post('/api/v1/admin/courses',{title:'Feedback policy'},rootCookie)).json().id;
+  const week=(await db.pool.query('INSERT INTO weeks(course_id,position,title) VALUES($1,1,$2) RETURNING id',[course,'Week'])).rows[0].id;
+  const day=(await db.pool.query('INSERT INTO days(week_id,position,title) VALUES($1,1,$2) RETURNING id',[week,'Day'])).rows[0].id;
+  const chapter=(await db.pool.query('INSERT INTO chapters(day_id,position,title) VALUES($1,1,$2) RETURNING id',[day,'Chapter'])).rows[0].id;
+  const versions:string[]=[];for(const [i,kind] of ['exercise','feedback','video'].entries()){const unit=(await db.pool.query('INSERT INTO learning_units(chapter_id,position,kind) VALUES($1,$2,$3) RETURNING id',[chapter,i+1,kind])).rows[0].id;versions.push((await db.pool.query("INSERT INTO learning_unit_versions(unit_id,version,title,publication_state) VALUES($1,1,$2,'ready_for_review') RETURNING id",[unit,kind])).rows[0].id);}
+  await db.pool.query("INSERT INTO exercise_definitions(unit_version_id,completion_policy) VALUES($1,'feedback_then_continue')",[versions[0]]);
+  const release=await post(`/api/v1/admin/courses/${course}/releases`,{units:[{unitVersionId:versions[0]},{unitVersionId:versions[1],required:false,content:'Feedback text',conditions:[{prerequisiteIndex:0,type:'first_attempt_submitted'}]},{unitVersionId:versions[2],durationSeconds:10}]},rootCookie);assert.equal(release.statusCode,201,release.body);
+  const [exercise,feedback,video]=release.json().unitIds;const e=await post('/api/v1/admin/enrollments',{studentId:b,courseId:course},rootCookie);assert.equal(e.statusCode,201,e.body);
+  const submitted=await post(`/api/v1/release-units/${exercise}/attempts`,{answer:'My answer'},bCookie);assert.equal(submitted.statusCode,201,submitted.body);assert.equal(submitted.json().state,'submitted');
+  assert.equal((await get(`/api/v1/release-units/${video}`,bCookie)).statusCode,404);
+  assert.equal((await get(`/api/v1/release-units/${feedback}`,bCookie)).statusCode,200);
+  assert.equal((await get(`/api/v1/enrollments/${e.json().id}/roadmap`,bCookie)).json().currentUnitId,feedback);
+  assert.equal((await post(`/api/v1/release-units/${feedback}/complete`,{},bCookie)).statusCode,200);
+  assert.equal((await get(`/api/v1/release-units/${video}`,bCookie)).statusCode,200);
+ });
+ await t.test('revision-required and submit-to-complete policies',async()=>{
+  const course=(await post('/api/v1/admin/courses',{title:'Exercise policies'},rootCookie)).json().id;
+  const week=(await db.pool.query('INSERT INTO weeks(course_id,position,title) VALUES($1,1,$2) RETURNING id',[course,'Week'])).rows[0].id;
+  const day=(await db.pool.query('INSERT INTO days(week_id,position,title) VALUES($1,1,$2) RETURNING id',[week,'Day'])).rows[0].id;
+  const chapter=(await db.pool.query('INSERT INTO chapters(day_id,position,title) VALUES($1,1,$2) RETURNING id',[day,'Chapter'])).rows[0].id;
+  const versions:string[]=[];for(let i=0;i<2;i++){const unit=(await db.pool.query("INSERT INTO learning_units(chapter_id,position,kind) VALUES($1,$2,'exercise') RETURNING id",[chapter,i+1])).rows[0].id;versions.push((await db.pool.query("INSERT INTO learning_unit_versions(unit_id,version,title,publication_state) VALUES($1,1,$2,'ready_for_review') RETURNING id",[unit,`Exercise ${i+1}`])).rows[0].id);}
+  await db.pool.query("INSERT INTO exercise_definitions(unit_version_id,completion_policy) VALUES($1,'revision_required'),($2,'submit_to_complete')",versions);
+  const release=await post(`/api/v1/admin/courses/${course}/releases`,{units:versions.map(unitVersionId=>({unitVersionId}))},rootCookie);assert.equal(release.statusCode,201,release.body);const [first,second]=release.json().unitIds;
+  const enrolled=await post('/api/v1/admin/enrollments',{studentId:b,courseId:course},rootCookie);assert.equal(enrolled.statusCode,201,enrolled.body);
+  assert.equal((await post('/api/v1/admin/staff-assignments',{staffId:staff,studentId:b,courseId:course},rootCookie)).statusCode,200);
+  const original=await post(`/api/v1/release-units/${first}/attempts`,{answer:'Original'},bCookie);assert.equal(original.statusCode,201,original.body);
+  assert.equal((await post(`/api/v1/instructor/attempts/${original.json().id}/review`,{decision:'completed',message:'Too early'},staffCookie)).statusCode,409);
+  assert.equal((await post(`/api/v1/instructor/attempts/${original.json().id}/review`,{decision:'needs_revision',message:'Please revise'},staffCookie)).statusCode,200);
+  const revised=await post(`/api/v1/release-units/${first}/attempts`,{answer:'Revised'},bCookie);assert.equal(revised.statusCode,201,revised.body);
+  assert.equal((await post(`/api/v1/instructor/attempts/${revised.json().id}/review`,{decision:'completed',message:'Approved'},staffCookie)).statusCode,200);
+  assert.equal((await get(`/api/v1/release-units/${second}`,bCookie)).statusCode,200);
+  const final=await post(`/api/v1/release-units/${second}/attempts`,{answer:'Final answer'},bCookie);assert.equal(final.statusCode,201,final.body);assert.equal(final.json().state,'completed');
+  assert.equal((await get(`/api/v1/enrollments/${enrolled.json().id}/roadmap`,bCookie)).json().percent,100);
  });
 });

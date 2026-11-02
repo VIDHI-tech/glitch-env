@@ -6,23 +6,23 @@
       "url": "/api/v1/admin/courses",
       "status": 200,
       "response": {
-        "id": "2f54c700-2d9b-46ab-8447-ea3978b5dc8f",
+        "id": "f4e87562-4faa-4283-a690-16b419b1e3bc",
         "title": "M2 HTTP Journey",
         "state": "draft"
       }
     },
     {
       "method": "POST",
-      "url": "/api/v1/admin/courses/2f54c700-2d9b-46ab-8447-ea3978b5dc8f/releases",
+      "url": "/api/v1/admin/courses/f4e87562-4faa-4283-a690-16b419b1e3bc/releases",
       "status": 201,
       "response": {
-        "id": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "id": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "release_number": 1,
         "unitIds": [
-          "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
-          "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
-          "6092a946-2ba9-4e1f-90c5-38bcd945b560",
-          "23c68686-0124-4e5e-8b6e-d2588324f8cb"
+          "82b3ddda-7e45-4a68-92d2-4932d06bba03",
+          "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
+          "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
+          "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470"
         ]
       }
     },
@@ -40,8 +40,8 @@
       "url": "/api/v1/admin/enrollments",
       "status": 201,
       "response": {
-        "id": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
-        "release_id": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "id": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
+        "release_id": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active"
       }
     },
@@ -50,8 +50,8 @@
       "url": "/api/v1/admin/enrollments",
       "status": 201,
       "response": {
-        "id": "331912bd-19ef-43b7-844a-8506857c0b4d",
-        "release_id": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "id": "55d198ad-a9b6-407e-9474-38fd57d574fa",
+        "release_id": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active"
       }
     },
@@ -66,7 +66,7 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+      "url": "/api/v1/release-units/b8ca80f0-0557-4000-9e7b-456ae23b26c6",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -75,7 +75,7 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/23c68686-0124-4e5e-8b6e-d2588324f8cb",
+      "url": "/api/v1/release-units/23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -84,28 +84,28 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/roadmap",
+      "url": "/api/v1/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/roadmap",
       "status": 200,
       "response": {
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
-        "releaseId": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
+        "releaseId": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active",
         "completedRequired": 0,
         "totalRequired": 3,
         "percent": 0,
         "days": [
           {
-            "id": "47419471-edca-448a-b75d-191ed0f193e7",
+            "id": "02cf818b-0e2e-4e10-913f-9e2cb9aa7a1b",
             "title": "Day 1",
             "completedRequired": 0,
             "totalRequired": 3,
             "percent": 0
           }
         ],
-        "currentUnitId": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+        "currentUnitId": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
         "units": [
           {
-            "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
             "position": 1,
             "kind": "video",
             "required": true,
@@ -113,7 +113,7 @@
             "available": true
           },
           {
-            "id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+            "id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "position": 2,
             "kind": "video",
             "required": true,
@@ -121,7 +121,7 @@
             "available": false
           },
           {
-            "id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "position": 3,
             "kind": "exercise",
             "required": true,
@@ -129,7 +129,7 @@
             "available": false
           },
           {
-            "id": "23c68686-0124-4e5e-8b6e-d2588324f8cb",
+            "id": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
             "position": 4,
             "kind": "feedback",
             "required": false,
@@ -141,28 +141,28 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/331912bd-19ef-43b7-844a-8506857c0b4d/roadmap",
+      "url": "/api/v1/enrollments/55d198ad-a9b6-407e-9474-38fd57d574fa/roadmap",
       "status": 200,
       "response": {
-        "enrollmentId": "331912bd-19ef-43b7-844a-8506857c0b4d",
-        "releaseId": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "enrollmentId": "55d198ad-a9b6-407e-9474-38fd57d574fa",
+        "releaseId": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active",
         "completedRequired": 0,
         "totalRequired": 3,
         "percent": 0,
         "days": [
           {
-            "id": "47419471-edca-448a-b75d-191ed0f193e7",
+            "id": "02cf818b-0e2e-4e10-913f-9e2cb9aa7a1b",
             "title": "Day 1",
             "completedRequired": 0,
             "totalRequired": 3,
             "percent": 0
           }
         ],
-        "currentUnitId": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+        "currentUnitId": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
         "units": [
           {
-            "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
             "position": 1,
             "kind": "video",
             "required": true,
@@ -170,7 +170,7 @@
             "available": true
           },
           {
-            "id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+            "id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "position": 2,
             "kind": "video",
             "required": true,
@@ -178,7 +178,7 @@
             "available": false
           },
           {
-            "id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "position": 3,
             "kind": "exercise",
             "required": true,
@@ -186,7 +186,7 @@
             "available": false
           },
           {
-            "id": "23c68686-0124-4e5e-8b6e-d2588324f8cb",
+            "id": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
             "position": 4,
             "kind": "feedback",
             "required": false,
@@ -198,7 +198,7 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/roadmap",
+      "url": "/api/v1/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/roadmap",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -207,10 +207,10 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/release-units/4e630bff-ad7c-4abd-9f80-3187b2a8926e/video-sessions",
+      "url": "/api/v1/release-units/82b3ddda-7e45-4a68-92d2-4932d06bba03/video-sessions",
       "status": 201,
       "response": {
-        "id": "d998c674-8a37-4235-aba5-57a24aaad88d",
+        "id": "77178e12-714b-4054-841e-6b7d35a68e1b",
         "lastPositionSeconds": 0,
         "adapter": "test-video",
         "durationSeconds": 10
@@ -218,7 +218,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/d998c674-8a37-4235-aba5-57a24aaad88d/events",
+      "url": "/api/v1/video-sessions/77178e12-714b-4054-841e-6b7d35a68e1b/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 10,
@@ -229,7 +229,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/d998c674-8a37-4235-aba5-57a24aaad88d/events",
+      "url": "/api/v1/video-sessions/77178e12-714b-4054-841e-6b7d35a68e1b/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 10,
@@ -240,7 +240,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/d998c674-8a37-4235-aba5-57a24aaad88d/events",
+      "url": "/api/v1/video-sessions/77178e12-714b-4054-841e-6b7d35a68e1b/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 0,
@@ -251,7 +251,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/d998c674-8a37-4235-aba5-57a24aaad88d/events",
+      "url": "/api/v1/video-sessions/77178e12-714b-4054-841e-6b7d35a68e1b/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 4,
@@ -262,7 +262,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/d998c674-8a37-4235-aba5-57a24aaad88d/events",
+      "url": "/api/v1/video-sessions/77178e12-714b-4054-841e-6b7d35a68e1b/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 4,
@@ -273,10 +273,10 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/release-units/4e630bff-ad7c-4abd-9f80-3187b2a8926e/video-sessions",
+      "url": "/api/v1/release-units/82b3ddda-7e45-4a68-92d2-4932d06bba03/video-sessions",
       "status": 201,
       "response": {
-        "id": "1de6d0b6-9d43-46a2-98c7-3be7db954af9",
+        "id": "fbe7ef62-7481-43a5-8482-656b3b29b81b",
         "lastPositionSeconds": 4,
         "adapter": "test-video",
         "durationSeconds": 10
@@ -284,7 +284,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/d998c674-8a37-4235-aba5-57a24aaad88d/events",
+      "url": "/api/v1/video-sessions/77178e12-714b-4054-841e-6b7d35a68e1b/events",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -293,7 +293,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/1de6d0b6-9d43-46a2-98c7-3be7db954af9/events",
+      "url": "/api/v1/video-sessions/fbe7ef62-7481-43a5-8482-656b3b29b81b/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 6,
@@ -304,7 +304,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/1de6d0b6-9d43-46a2-98c7-3be7db954af9/events",
+      "url": "/api/v1/video-sessions/fbe7ef62-7481-43a5-8482-656b3b29b81b/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 8,
@@ -315,7 +315,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/1de6d0b6-9d43-46a2-98c7-3be7db954af9/events",
+      "url": "/api/v1/video-sessions/fbe7ef62-7481-43a5-8482-656b3b29b81b/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 10,
@@ -326,28 +326,28 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/roadmap",
+      "url": "/api/v1/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/roadmap",
       "status": 200,
       "response": {
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
-        "releaseId": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
+        "releaseId": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active",
         "completedRequired": 1,
         "totalRequired": 3,
         "percent": 33,
         "days": [
           {
-            "id": "47419471-edca-448a-b75d-191ed0f193e7",
+            "id": "02cf818b-0e2e-4e10-913f-9e2cb9aa7a1b",
             "title": "Day 1",
             "completedRequired": 1,
             "totalRequired": 3,
             "percent": 33
           }
         ],
-        "currentUnitId": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+        "currentUnitId": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
         "units": [
           {
-            "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
             "position": 1,
             "kind": "video",
             "required": true,
@@ -355,7 +355,7 @@
             "available": true
           },
           {
-            "id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+            "id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "position": 2,
             "kind": "video",
             "required": true,
@@ -363,7 +363,7 @@
             "available": true
           },
           {
-            "id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "position": 3,
             "kind": "exercise",
             "required": true,
@@ -371,7 +371,7 @@
             "available": false
           },
           {
-            "id": "23c68686-0124-4e5e-8b6e-d2588324f8cb",
+            "id": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
             "position": 4,
             "kind": "feedback",
             "required": false,
@@ -383,28 +383,28 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/331912bd-19ef-43b7-844a-8506857c0b4d/roadmap",
+      "url": "/api/v1/enrollments/55d198ad-a9b6-407e-9474-38fd57d574fa/roadmap",
       "status": 200,
       "response": {
-        "enrollmentId": "331912bd-19ef-43b7-844a-8506857c0b4d",
-        "releaseId": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "enrollmentId": "55d198ad-a9b6-407e-9474-38fd57d574fa",
+        "releaseId": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active",
         "completedRequired": 0,
         "totalRequired": 3,
         "percent": 0,
         "days": [
           {
-            "id": "47419471-edca-448a-b75d-191ed0f193e7",
+            "id": "02cf818b-0e2e-4e10-913f-9e2cb9aa7a1b",
             "title": "Day 1",
             "completedRequired": 0,
             "totalRequired": 3,
             "percent": 0
           }
         ],
-        "currentUnitId": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+        "currentUnitId": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
         "units": [
           {
-            "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
             "position": 1,
             "kind": "video",
             "required": true,
@@ -412,7 +412,7 @@
             "available": true
           },
           {
-            "id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+            "id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "position": 2,
             "kind": "video",
             "required": true,
@@ -420,7 +420,7 @@
             "available": false
           },
           {
-            "id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "position": 3,
             "kind": "exercise",
             "required": true,
@@ -428,7 +428,7 @@
             "available": false
           },
           {
-            "id": "23c68686-0124-4e5e-8b6e-d2588324f8cb",
+            "id": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
             "position": 4,
             "kind": "feedback",
             "required": false,
@@ -440,11 +440,11 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+      "url": "/api/v1/release-units/82b3ddda-7e45-4a68-92d2-4932d06bba03",
       "status": 200,
       "response": {
-        "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
+        "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
         "kind": "video",
         "content": "Video 01 test adapter",
         "required": true,
@@ -456,7 +456,7 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+      "url": "/api/v1/release-units/b8ca80f0-0557-4000-9e7b-456ae23b26c6",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -465,10 +465,10 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/release-units/d351050d-f6ca-425b-870e-fb0ff1ee44dd/video-sessions",
+      "url": "/api/v1/release-units/b8ca80f0-0557-4000-9e7b-456ae23b26c6/video-sessions",
       "status": 201,
       "response": {
-        "id": "949db60e-5695-4c24-8ee4-f6ce1e09d659",
+        "id": "4eb7387b-b6f4-4e52-95b0-477ee2a19819",
         "lastPositionSeconds": 0,
         "adapter": "test-video",
         "durationSeconds": 10
@@ -476,7 +476,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/949db60e-5695-4c24-8ee4-f6ce1e09d659/events",
+      "url": "/api/v1/video-sessions/4eb7387b-b6f4-4e52-95b0-477ee2a19819/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 2,
@@ -487,7 +487,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/949db60e-5695-4c24-8ee4-f6ce1e09d659/events",
+      "url": "/api/v1/video-sessions/4eb7387b-b6f4-4e52-95b0-477ee2a19819/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 4,
@@ -498,7 +498,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/949db60e-5695-4c24-8ee4-f6ce1e09d659/events",
+      "url": "/api/v1/video-sessions/4eb7387b-b6f4-4e52-95b0-477ee2a19819/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 6,
@@ -509,7 +509,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/949db60e-5695-4c24-8ee4-f6ce1e09d659/events",
+      "url": "/api/v1/video-sessions/4eb7387b-b6f4-4e52-95b0-477ee2a19819/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 8,
@@ -520,7 +520,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/video-sessions/949db60e-5695-4c24-8ee4-f6ce1e09d659/events",
+      "url": "/api/v1/video-sessions/4eb7387b-b6f4-4e52-95b0-477ee2a19819/events",
       "status": 200,
       "response": {
         "lastPositionSeconds": 10,
@@ -531,7 +531,7 @@
     },
     {
       "method": "PUT",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560/exercise-draft",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd/exercise-draft",
       "status": 200,
       "response": {
         "answer": "First draft",
@@ -540,7 +540,7 @@
     },
     {
       "method": "PUT",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560/exercise-draft",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd/exercise-draft",
       "status": 409,
       "response": {
         "code": "CONFLICT",
@@ -549,7 +549,7 @@
     },
     {
       "method": "PUT",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560/note",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd/note",
       "status": 200,
       "response": {
         "body": "Private note",
@@ -558,11 +558,11 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd",
       "status": 200,
       "response": {
-        "id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
+        "id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
         "kind": "exercise",
         "content": "Exercise 01",
         "required": true,
@@ -574,7 +574,7 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -583,7 +583,7 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/23c68686-0124-4e5e-8b6e-d2588324f8cb",
+      "url": "/api/v1/release-units/23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -592,21 +592,21 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560/attempts",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd/attempts",
       "status": 201,
       "response": {
-        "id": "d8803aa4-8f7e-44b2-8cda-277ffaea8e55",
+        "id": "9fdc6793-b12f-4973-a41f-31bf74b687de",
         "attempt_number": 1,
         "state": "awaiting_review"
       }
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/23c68686-0124-4e5e-8b6e-d2588324f8cb",
+      "url": "/api/v1/release-units/23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
       "status": 200,
       "response": {
-        "id": "23c68686-0124-4e5e-8b6e-d2588324f8cb",
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
+        "id": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
         "kind": "feedback",
         "content": "Evidence revealed after first attempt",
         "required": false,
@@ -618,13 +618,13 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560/attempts",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd/attempts",
       "status": 200,
       "response": []
     },
     {
       "method": "POST",
-      "url": "/api/v1/instructor/attempts/d8803aa4-8f7e-44b2-8cda-277ffaea8e55/review",
+      "url": "/api/v1/instructor/attempts/9fdc6793-b12f-4973-a41f-31bf74b687de/review",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -649,7 +649,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/instructor/attempts/d8803aa4-8f7e-44b2-8cda-277ffaea8e55/review",
+      "url": "/api/v1/instructor/attempts/9fdc6793-b12f-4973-a41f-31bf74b687de/review",
       "status": 200,
       "response": {
         "decision": "needs_revision"
@@ -657,34 +657,34 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560/attempts",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd/attempts",
       "status": 201,
       "response": {
-        "id": "bbf44c75-d18c-4d62-ad13-d0da59a049be",
+        "id": "e1f47fe2-d3a5-4733-ba8c-e5d8715a9e48",
         "attempt_number": 2,
         "state": "awaiting_review"
       }
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560/attempts",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd/attempts",
       "status": 200,
       "response": [
         {
-          "id": "d8803aa4-8f7e-44b2-8cda-277ffaea8e55",
+          "id": "9fdc6793-b12f-4973-a41f-31bf74b687de",
           "attempt_number": 1,
           "answer": "Original answer",
           "state": "needs_revision",
-          "submitted_at": "2026-11-02T20:18:41.859Z",
+          "submitted_at": "2026-11-02T20:24:25.567Z",
           "message": "Add evidence",
           "decision": "needs_revision"
         },
         {
-          "id": "bbf44c75-d18c-4d62-ad13-d0da59a049be",
+          "id": "e1f47fe2-d3a5-4733-ba8c-e5d8715a9e48",
           "attempt_number": 2,
           "answer": "Revised answer",
           "state": "awaiting_review",
-          "submitted_at": "2026-11-02T20:18:41.869Z",
+          "submitted_at": "2026-11-02T20:24:25.578Z",
           "message": null,
           "decision": null
         }
@@ -692,7 +692,7 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/instructor/attempts/bbf44c75-d18c-4d62-ad13-d0da59a049be/review",
+      "url": "/api/v1/instructor/attempts/e1f47fe2-d3a5-4733-ba8c-e5d8715a9e48/review",
       "status": 200,
       "response": {
         "decision": "completed"
@@ -700,28 +700,28 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/roadmap",
+      "url": "/api/v1/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/roadmap",
       "status": 200,
       "response": {
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
-        "releaseId": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
+        "releaseId": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active",
         "completedRequired": 3,
         "totalRequired": 3,
         "percent": 100,
         "days": [
           {
-            "id": "47419471-edca-448a-b75d-191ed0f193e7",
+            "id": "02cf818b-0e2e-4e10-913f-9e2cb9aa7a1b",
             "title": "Day 1",
             "completedRequired": 3,
             "totalRequired": 3,
             "percent": 100
           }
         ],
-        "currentUnitId": null,
+        "currentUnitId": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
         "units": [
           {
-            "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
             "position": 1,
             "kind": "video",
             "required": true,
@@ -729,7 +729,7 @@
             "available": true
           },
           {
-            "id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+            "id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "position": 2,
             "kind": "video",
             "required": true,
@@ -737,7 +737,7 @@
             "available": true
           },
           {
-            "id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "position": 3,
             "kind": "exercise",
             "required": true,
@@ -745,7 +745,7 @@
             "available": true
           },
           {
-            "id": "23c68686-0124-4e5e-8b6e-d2588324f8cb",
+            "id": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
             "position": 4,
             "kind": "feedback",
             "required": false,
@@ -760,8 +760,8 @@
       "url": "/api/v1/portfolio/artifacts",
       "status": 201,
       "response": {
-        "id": "ee79a376-9d20-45d0-8b8a-b8fa7f49d1ca",
-        "course_id": "2f54c700-2d9b-46ab-8447-ea3978b5dc8f",
+        "id": "9b25f5c9-9403-4fd3-845e-b8d5dbcbc31e",
+        "course_id": "f4e87562-4faa-4283-a690-16b419b1e3bc",
         "title": "My work",
         "body": "Private",
         "revision": 1
@@ -769,7 +769,7 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/portfolio/artifacts/ee79a376-9d20-45d0-8b8a-b8fa7f49d1ca",
+      "url": "/api/v1/portfolio/artifacts/9b25f5c9-9403-4fd3-845e-b8d5dbcbc31e",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -778,65 +778,65 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/activity",
+      "url": "/api/v1/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/activity",
       "status": 200,
       "response": {
         "items": [
           {
-            "id": "fd7c8969-7e04-4d29-8a7b-3fc3a9303457",
-            "release_unit_id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "da52aa33-6936-4557-b318-718716747d38",
+            "release_unit_id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "event": "video_completed",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.834Z"
+            "created_at": "2026-11-02T20:24:25.556Z"
           },
           {
-            "id": "ec8df48e-4ddf-4caa-9a9b-43d5d9d4203c",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
-            "event": "submitted",
-            "detail": "",
-            "created_at": "2026-11-02T20:18:41.859Z"
-          },
-          {
-            "id": "ea20d871-6033-4735-8159-24a41075400b",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "86f2f141-e5d2-44b6-9598-af7395600227",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "event": "review_approved",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.871Z"
+            "created_at": "2026-11-02T20:24:25.580Z"
           },
           {
-            "id": "cc72de11-930c-42dd-9acb-690c0382f8f3",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "691fed88-c88b-46fa-9527-9e6cece878c3",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "event": "draft_saved",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.851Z"
+            "created_at": "2026-11-02T20:24:25.559Z"
           },
           {
-            "id": "aaae599b-7bcc-414e-8276-464fad17cf16",
-            "release_unit_id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
-            "event": "video_completed",
+            "id": "4fbfaf2a-0f29-4f20-9b71-575785e54c00",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
+            "event": "submitted",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.848Z"
+            "created_at": "2026-11-02T20:24:25.567Z"
           },
           {
-            "id": "69f0fd61-f0a3-46d4-b109-8b7f967fdd20",
+            "id": "461b5f68-40dc-4aa6-b893-6c078ef85072",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
+            "event": "needs_revision",
+            "detail": "",
+            "created_at": "2026-11-02T20:24:25.575Z"
+          },
+          {
+            "id": "12ce0ed8-2ee7-49d6-a356-87c3500b3766",
             "release_unit_id": null,
             "event": "enrolled",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.766Z"
+            "created_at": "2026-11-02T20:24:25.472Z"
           },
           {
-            "id": "67a70a96-eb40-4fc7-898a-ad25877691cc",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
-            "event": "needs_revision",
+            "id": "0984873f-f157-4e47-b89a-dc64fab46de8",
+            "release_unit_id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
+            "event": "video_completed",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.866Z"
+            "created_at": "2026-11-02T20:24:25.542Z"
           },
           {
-            "id": "0988a2bf-9fed-432a-94be-2b16fbae485b",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "01843bbc-cbea-45a2-b0b9-5c9e9a1d0742",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "event": "submitted",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.869Z"
+            "created_at": "2026-11-02T20:24:25.578Z"
           }
         ],
         "nextCursor": null
@@ -844,28 +844,28 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/roadmap",
+      "url": "/api/v1/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/roadmap",
       "status": 200,
       "response": {
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
-        "releaseId": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
+        "releaseId": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active",
         "completedRequired": 3,
         "totalRequired": 3,
         "percent": 100,
         "days": [
           {
-            "id": "47419471-edca-448a-b75d-191ed0f193e7",
+            "id": "02cf818b-0e2e-4e10-913f-9e2cb9aa7a1b",
             "title": "Day 1",
             "completedRequired": 3,
             "totalRequired": 3,
             "percent": 100
           }
         ],
-        "currentUnitId": null,
+        "currentUnitId": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
         "units": [
           {
-            "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
             "position": 1,
             "kind": "video",
             "required": true,
@@ -873,7 +873,7 @@
             "available": true
           },
           {
-            "id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+            "id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "position": 2,
             "kind": "video",
             "required": true,
@@ -881,7 +881,7 @@
             "available": true
           },
           {
-            "id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "position": 3,
             "kind": "exercise",
             "required": true,
@@ -889,7 +889,7 @@
             "available": true
           },
           {
-            "id": "23c68686-0124-4e5e-8b6e-d2588324f8cb",
+            "id": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
             "position": 4,
             "kind": "feedback",
             "required": false,
@@ -901,16 +901,16 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/admin/courses/2f54c700-2d9b-46ab-8447-ea3978b5dc8f/releases",
+      "url": "/api/v1/admin/courses/f4e87562-4faa-4283-a690-16b419b1e3bc/releases",
       "status": 201,
       "response": {
-        "id": "3c91c5f1-3a5d-4c1e-87a1-fadbfac05726",
+        "id": "58937740-edbd-4173-b388-e32bd1eadc04",
         "release_number": 2,
         "unitIds": [
-          "7becea44-359b-4d05-a3c4-d3fe61ca2cf5",
-          "6769e109-f958-42ae-8e88-b8e6ac7040fe",
-          "a337461b-a6ea-458f-875b-5075defa7ce0",
-          "25acfa6b-dd4d-4aec-914e-cfc55cab7b10"
+          "2105f2f2-ec5b-412f-a325-6926c29761e6",
+          "7ffc8d62-1175-4dc0-9dea-03bcce58a599",
+          "b5c44af7-6511-4f71-a895-969567d9796d",
+          "938f0774-c534-492f-9883-042a46f54c13"
         ]
       }
     },
@@ -919,35 +919,35 @@
       "url": "/api/v1/admin/enrollments",
       "status": 201,
       "response": {
-        "id": "486c898e-1497-4c13-a85c-f742474dc614",
-        "release_id": "3c91c5f1-3a5d-4c1e-87a1-fadbfac05726",
+        "id": "0c1a92d7-ba42-4f36-b6ad-eadd2bc59ff1",
+        "release_id": "58937740-edbd-4173-b388-e32bd1eadc04",
         "state": "active"
       }
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/roadmap",
+      "url": "/api/v1/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/roadmap",
       "status": 200,
       "response": {
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
-        "releaseId": "11473ab9-ede5-4b4b-82d8-bf5127149f64",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
+        "releaseId": "b483667b-4fa2-4de4-b554-d7873c5976a3",
         "state": "active",
         "completedRequired": 3,
         "totalRequired": 3,
         "percent": 100,
         "days": [
           {
-            "id": "47419471-edca-448a-b75d-191ed0f193e7",
+            "id": "02cf818b-0e2e-4e10-913f-9e2cb9aa7a1b",
             "title": "Day 1",
             "completedRequired": 3,
             "totalRequired": 3,
             "percent": 100
           }
         ],
-        "currentUnitId": null,
+        "currentUnitId": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
         "units": [
           {
-            "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
             "position": 1,
             "kind": "video",
             "required": true,
@@ -955,7 +955,7 @@
             "available": true
           },
           {
-            "id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
+            "id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "position": 2,
             "kind": "video",
             "required": true,
@@ -963,7 +963,7 @@
             "available": true
           },
           {
-            "id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "position": 3,
             "kind": "exercise",
             "required": true,
@@ -971,7 +971,7 @@
             "available": true
           },
           {
-            "id": "23c68686-0124-4e5e-8b6e-d2588324f8cb",
+            "id": "23a05c04-8f3f-4a0a-8d07-bc02a8ef3470",
             "position": 4,
             "kind": "feedback",
             "required": false,
@@ -983,11 +983,11 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+      "url": "/api/v1/release-units/82b3ddda-7e45-4a68-92d2-4932d06bba03",
       "status": 200,
       "response": {
-        "id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
-        "enrollmentId": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
+        "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
         "kind": "video",
         "content": "Video 01 test adapter",
         "required": true,
@@ -999,16 +999,16 @@
     },
     {
       "method": "POST",
-      "url": "/api/v1/admin/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/suspend",
+      "url": "/api/v1/admin/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/suspend",
       "status": 200,
       "response": {
-        "id": "9dcbb638-47ca-4e74-9ba9-803f212ba05c",
+        "id": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
         "state": "suspended"
       }
     },
     {
       "method": "GET",
-      "url": "/api/v1/release-units/4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+      "url": "/api/v1/release-units/82b3ddda-7e45-4a68-92d2-4932d06bba03",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -1017,7 +1017,7 @@
     },
     {
       "method": "PUT",
-      "url": "/api/v1/release-units/6092a946-2ba9-4e1f-90c5-38bcd945b560/note",
+      "url": "/api/v1/release-units/b5a670b4-47f9-4226-b3a2-192a259cf5cd/note",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -1026,7 +1026,7 @@
     },
     {
       "method": "PATCH",
-      "url": "/api/v1/portfolio/artifacts/ee79a376-9d20-45d0-8b8a-b8fa7f49d1ca",
+      "url": "/api/v1/portfolio/artifacts/9b25f5c9-9403-4fd3-845e-b8d5dbcbc31e",
       "status": 404,
       "response": {
         "code": "NOT_FOUND",
@@ -1035,75 +1035,395 @@
     },
     {
       "method": "GET",
-      "url": "/api/v1/enrollments/9dcbb638-47ca-4e74-9ba9-803f212ba05c/activity",
+      "url": "/api/v1/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/activity",
       "status": 200,
       "response": {
         "items": [
           {
-            "id": "fd7c8969-7e04-4d29-8a7b-3fc3a9303457",
-            "release_unit_id": "4e630bff-ad7c-4abd-9f80-3187b2a8926e",
+            "id": "da52aa33-6936-4557-b318-718716747d38",
+            "release_unit_id": "b8ca80f0-0557-4000-9e7b-456ae23b26c6",
             "event": "video_completed",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.834Z"
+            "created_at": "2026-11-02T20:24:25.556Z"
           },
           {
-            "id": "ec8df48e-4ddf-4caa-9a9b-43d5d9d4203c",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
-            "event": "submitted",
-            "detail": "",
-            "created_at": "2026-11-02T20:18:41.859Z"
-          },
-          {
-            "id": "ea20d871-6033-4735-8159-24a41075400b",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "86f2f141-e5d2-44b6-9598-af7395600227",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "event": "review_approved",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.871Z"
+            "created_at": "2026-11-02T20:24:25.580Z"
           },
           {
-            "id": "cc72de11-930c-42dd-9acb-690c0382f8f3",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "691fed88-c88b-46fa-9527-9e6cece878c3",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "event": "draft_saved",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.851Z"
+            "created_at": "2026-11-02T20:24:25.559Z"
           },
           {
-            "id": "ab04fe5f-0aea-4710-936d-4ed564cdc71a",
-            "release_unit_id": null,
-            "event": "suspended",
+            "id": "4fbfaf2a-0f29-4f20-9b71-575785e54c00",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
+            "event": "submitted",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.936Z"
+            "created_at": "2026-11-02T20:24:25.567Z"
           },
           {
-            "id": "aaae599b-7bcc-414e-8276-464fad17cf16",
-            "release_unit_id": "d351050d-f6ca-425b-870e-fb0ff1ee44dd",
-            "event": "video_completed",
+            "id": "461b5f68-40dc-4aa6-b893-6c078ef85072",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
+            "event": "needs_revision",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.848Z"
+            "created_at": "2026-11-02T20:24:25.575Z"
           },
           {
-            "id": "69f0fd61-f0a3-46d4-b109-8b7f967fdd20",
+            "id": "12ce0ed8-2ee7-49d6-a356-87c3500b3766",
             "release_unit_id": null,
             "event": "enrolled",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.766Z"
+            "created_at": "2026-11-02T20:24:25.472Z"
           },
           {
-            "id": "67a70a96-eb40-4fc7-898a-ad25877691cc",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
-            "event": "needs_revision",
+            "id": "099e1732-1ee9-44b7-b6a0-3d4fda9225ef",
+            "release_unit_id": null,
+            "event": "suspended",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.866Z"
+            "created_at": "2026-11-02T20:24:25.647Z"
           },
           {
-            "id": "0988a2bf-9fed-432a-94be-2b16fbae485b",
-            "release_unit_id": "6092a946-2ba9-4e1f-90c5-38bcd945b560",
+            "id": "0984873f-f157-4e47-b89a-dc64fab46de8",
+            "release_unit_id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
+            "event": "video_completed",
+            "detail": "",
+            "created_at": "2026-11-02T20:24:25.542Z"
+          },
+          {
+            "id": "01843bbc-cbea-45a2-b0b9-5c9e9a1d0742",
+            "release_unit_id": "b5a670b4-47f9-4226-b3a2-192a259cf5cd",
             "event": "submitted",
             "detail": "",
-            "created_at": "2026-11-02T20:18:41.869Z"
+            "created_at": "2026-11-02T20:24:25.578Z"
           }
         ],
         "nextCursor": null
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/admin/enrollments/be0cade6-83f3-4cf8-a479-d0fe70fb2347/resume",
+      "status": 200,
+      "response": {
+        "id": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
+        "state": "active"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/release-units/82b3ddda-7e45-4a68-92d2-4932d06bba03",
+      "status": 200,
+      "response": {
+        "id": "82b3ddda-7e45-4a68-92d2-4932d06bba03",
+        "enrollmentId": "be0cade6-83f3-4cf8-a479-d0fe70fb2347",
+        "kind": "video",
+        "content": "Video 01 test adapter",
+        "required": true,
+        "state": "completed",
+        "durationSeconds": 10,
+        "note": null,
+        "draft": null
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/admin/courses",
+      "status": 200,
+      "response": {
+        "id": "d24a21af-2b51-47fe-b16e-49964146b79d",
+        "title": "Feedback policy",
+        "state": "draft"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/admin/courses/d24a21af-2b51-47fe-b16e-49964146b79d/releases",
+      "status": 201,
+      "response": {
+        "id": "3902e684-e063-48fe-9251-34292ec99407",
+        "release_number": 1,
+        "unitIds": [
+          "3637285e-4dc3-4b16-8a19-61ba4fb1be5b",
+          "79ad37de-6ed0-44dc-89fa-842b6499c7b4",
+          "51eef795-84f8-4982-9ce9-37cd93683f28"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/admin/enrollments",
+      "status": 201,
+      "response": {
+        "id": "77e9d4b5-9d83-43c6-9281-6a871f246cac",
+        "release_id": "3902e684-e063-48fe-9251-34292ec99407",
+        "state": "active"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/release-units/3637285e-4dc3-4b16-8a19-61ba4fb1be5b/attempts",
+      "status": 201,
+      "response": {
+        "id": "4f7d1c5c-9cc4-4ae3-930a-6065b8a56d7c",
+        "attempt_number": 1,
+        "state": "submitted"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/release-units/51eef795-84f8-4982-9ce9-37cd93683f28",
+      "status": 404,
+      "response": {
+        "code": "NOT_FOUND",
+        "message": "Unit locked"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/release-units/79ad37de-6ed0-44dc-89fa-842b6499c7b4",
+      "status": 200,
+      "response": {
+        "id": "79ad37de-6ed0-44dc-89fa-842b6499c7b4",
+        "enrollmentId": "77e9d4b5-9d83-43c6-9281-6a871f246cac",
+        "kind": "feedback",
+        "content": "Feedback text",
+        "required": false,
+        "state": "available",
+        "durationSeconds": null,
+        "note": null,
+        "draft": null
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/enrollments/77e9d4b5-9d83-43c6-9281-6a871f246cac/roadmap",
+      "status": 200,
+      "response": {
+        "enrollmentId": "77e9d4b5-9d83-43c6-9281-6a871f246cac",
+        "releaseId": "3902e684-e063-48fe-9251-34292ec99407",
+        "state": "active",
+        "completedRequired": 0,
+        "totalRequired": 2,
+        "percent": 0,
+        "days": [
+          {
+            "id": "543db25f-11ec-4f90-8c4b-ba034c0be7bd",
+            "title": "Day",
+            "completedRequired": 0,
+            "totalRequired": 2,
+            "percent": 0
+          }
+        ],
+        "currentUnitId": "79ad37de-6ed0-44dc-89fa-842b6499c7b4",
+        "units": [
+          {
+            "id": "3637285e-4dc3-4b16-8a19-61ba4fb1be5b",
+            "position": 1,
+            "kind": "exercise",
+            "required": true,
+            "state": "submitted",
+            "available": true
+          },
+          {
+            "id": "79ad37de-6ed0-44dc-89fa-842b6499c7b4",
+            "position": 2,
+            "kind": "feedback",
+            "required": false,
+            "state": "available",
+            "available": true
+          },
+          {
+            "id": "51eef795-84f8-4982-9ce9-37cd93683f28",
+            "position": 3,
+            "kind": "video",
+            "required": true,
+            "state": "locked",
+            "available": false
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/release-units/79ad37de-6ed0-44dc-89fa-842b6499c7b4/complete",
+      "status": 200,
+      "response": {
+        "state": "completed"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/release-units/51eef795-84f8-4982-9ce9-37cd93683f28",
+      "status": 200,
+      "response": {
+        "id": "51eef795-84f8-4982-9ce9-37cd93683f28",
+        "enrollmentId": "77e9d4b5-9d83-43c6-9281-6a871f246cac",
+        "kind": "video",
+        "content": "",
+        "required": true,
+        "state": "available",
+        "durationSeconds": 10,
+        "note": null,
+        "draft": null
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/admin/courses",
+      "status": 200,
+      "response": {
+        "id": "2203ba45-d317-4578-ad65-216e122d074b",
+        "title": "Exercise policies",
+        "state": "draft"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/admin/courses/2203ba45-d317-4578-ad65-216e122d074b/releases",
+      "status": 201,
+      "response": {
+        "id": "20d7ff0c-3e15-4e97-87b8-2e2ff46260be",
+        "release_number": 1,
+        "unitIds": [
+          "b1b9f882-ce7f-4282-8752-16702373165d",
+          "6aab14e3-20a0-436a-92b5-6cc2014ee5a4"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/admin/enrollments",
+      "status": 201,
+      "response": {
+        "id": "d29d9f11-d4d7-416d-8d25-4c38b5d10acd",
+        "release_id": "20d7ff0c-3e15-4e97-87b8-2e2ff46260be",
+        "state": "active"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/admin/staff-assignments",
+      "status": 200,
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/release-units/b1b9f882-ce7f-4282-8752-16702373165d/attempts",
+      "status": 201,
+      "response": {
+        "id": "9794454f-60a6-4423-b46e-7d53d700aba4",
+        "attempt_number": 1,
+        "state": "awaiting_review"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/instructor/attempts/9794454f-60a6-4423-b46e-7d53d700aba4/review",
+      "status": 409,
+      "response": {
+        "code": "CONFLICT",
+        "message": "First attempt requires revision"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/instructor/attempts/9794454f-60a6-4423-b46e-7d53d700aba4/review",
+      "status": 200,
+      "response": {
+        "decision": "needs_revision"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/release-units/b1b9f882-ce7f-4282-8752-16702373165d/attempts",
+      "status": 201,
+      "response": {
+        "id": "f10858aa-ce59-427a-a24c-fe5228eddc0d",
+        "attempt_number": 2,
+        "state": "awaiting_review"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/instructor/attempts/f10858aa-ce59-427a-a24c-fe5228eddc0d/review",
+      "status": 200,
+      "response": {
+        "decision": "completed"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/release-units/6aab14e3-20a0-436a-92b5-6cc2014ee5a4",
+      "status": 200,
+      "response": {
+        "id": "6aab14e3-20a0-436a-92b5-6cc2014ee5a4",
+        "enrollmentId": "d29d9f11-d4d7-416d-8d25-4c38b5d10acd",
+        "kind": "exercise",
+        "content": "",
+        "required": true,
+        "state": "available",
+        "durationSeconds": null,
+        "note": null,
+        "draft": null
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/release-units/6aab14e3-20a0-436a-92b5-6cc2014ee5a4/attempts",
+      "status": 201,
+      "response": {
+        "id": "f2b413ee-5a68-4aa1-8947-6253eba4e0bc",
+        "attempt_number": 1,
+        "state": "completed"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/enrollments/d29d9f11-d4d7-416d-8d25-4c38b5d10acd/roadmap",
+      "status": 200,
+      "response": {
+        "enrollmentId": "d29d9f11-d4d7-416d-8d25-4c38b5d10acd",
+        "releaseId": "20d7ff0c-3e15-4e97-87b8-2e2ff46260be",
+        "state": "active",
+        "completedRequired": 2,
+        "totalRequired": 2,
+        "percent": 100,
+        "days": [
+          {
+            "id": "47b9349e-6169-41df-a792-bc2519087f6f",
+            "title": "Day",
+            "completedRequired": 2,
+            "totalRequired": 2,
+            "percent": 100
+          }
+        ],
+        "currentUnitId": null,
+        "units": [
+          {
+            "id": "b1b9f882-ce7f-4282-8752-16702373165d",
+            "position": 1,
+            "kind": "exercise",
+            "required": true,
+            "state": "completed",
+            "available": true
+          },
+          {
+            "id": "6aab14e3-20a0-436a-92b5-6cc2014ee5a4",
+            "position": 2,
+            "kind": "exercise",
+            "required": true,
+            "state": "completed",
+            "available": true
+          }
+        ]
       }
     }
   ]

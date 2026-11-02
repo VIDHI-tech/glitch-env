@@ -55,9 +55,9 @@ The server orders a student's assigned release units. A required unit blocks lat
 | Policy | Submission result | Unlock rule |
 | --- | --- | --- |
 | `submit_to_complete` | Completed | Next required unit can unlock |
-| `feedback_then_continue` | Completed | Feedback still obeys its release condition |
+| `feedback_then_continue` | Submitted | A gated feedback unit must be acknowledged before the exercise completes and the next required unit unlocks |
 | `instructor_approval` | Awaiting review | Next required unit waits for an assigned instructor's approval |
-| `revision_required` | Awaiting review | Revision creates a new immutable attempt; approval completes it |
+| `revision_required` | Awaiting review | The first attempt cannot be approved; a revision creates a new immutable attempt before approval |
 
 A draft or note uses a revision number; stale writes return 409. Attempts are immutable rows with increasing attempt numbers. Feedback and decisions refer to the exact attempt. The instructor must retain a privileged role and an exact staff/student/course assignment at review time.
 
