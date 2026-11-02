@@ -47,4 +47,4 @@ M0 baseline run: **22 tests passed, 0 failed, 0 skipped**. `npm run check` passe
 - Legacy `npm test`: **22 passed, 0 failed, 0 skipped**. `npm run check` passed.
 - Playwright Chromium: **3 passed, 0 failed, 0 skipped**. Four real-page screenshots and three traces are stored in `tests/e2e/artifacts/`.
 
-These are local checks. The GitHub Actions run must pass separately after push. Production Resend delivery, production PostgreSQL migration, and migration of the old student environment were not exercised.
+These local checks are backed by [GitHub CI run #1](https://github.com/VIDHI-tech/glitch-env/actions/runs/41508649589), which passed typecheck, build, API unit, PostgreSQL integration, and legacy regression steps on commit `2aa4535`. Production Resend delivery, production PostgreSQL migration, and migration of the old student environment were not exercised.

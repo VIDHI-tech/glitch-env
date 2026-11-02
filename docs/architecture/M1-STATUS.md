@@ -19,4 +19,4 @@ Run the commands in [M1-TESTING.md](M1-TESTING.md). The local verification recor
 
 - Live Resend delivery requires configured credentials and a verified sending domain; automated tests use captured mail.
 - The complete M0 target schema, SQLite importer, student progression engine, media services, and full React student/admin UI belong to later work and are not claimed in M1.
-- CI must run on GitHub after push. The local disposable database and browser results do not substitute for a passing remote check.
+- [GitHub CI run #1](https://github.com/VIDHI-tech/glitch-env/actions/runs/41508649589) passed typecheck, build, API unit, PostgreSQL integration, and legacy regression checks on commit `2aa4535`. Production deployment and browser cross-browser checks remain separate gates.
