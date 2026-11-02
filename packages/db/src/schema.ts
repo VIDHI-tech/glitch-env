@@ -1,4 +1,5 @@
 import { pgTable, uuid, text, integer, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { user } from './auth-schema.js';
 // M1 GLITCH tables. Better Auth's core schema is generated from its adapter config
 // before these tables are migrated to a shared production database.
 export const courses = pgTable('courses',{
@@ -31,3 +32,17 @@ export const learningUnitVersions=pgTable('learning_unit_versions',{
   publicationState:text('publication_state',{enum:['draft','ready_for_review','published','unpublished','archived']}).notNull().default('draft'),
   createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
 },t=>[uniqueIndex('unit_versions_unit_version').on(t.unitId,t.version)]);
+
+export const userRoleAssignments=pgTable('user_role_assignments',{
+ userId:uuid('user_id').notNull().references(()=>user.id),
+ role:text('role',{enum:['super_admin','content_admin','instructor','student']}).notNull(),
+ grantedBy:uuid('granted_by').references(()=>user.id),
+ grantedAt:timestamp('granted_at',{withTimezone:true}).notNull().defaultNow()
+},t=>[uniqueIndex('user_role_unique').on(t.userId,t.role)]);
+export const staffStudentAssignments=pgTable('staff_student_assignments',{
+ staffId:uuid('staff_id').notNull().references(()=>user.id),
+ studentId:uuid('student_id').notNull().references(()=>user.id),
+ courseId:uuid('course_id').notNull().references(()=>courses.id),
+ assignedBy:uuid('assigned_by').notNull().references(()=>user.id),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+},t=>[uniqueIndex('staff_student_course_unique').on(t.staffId,t.studentId,t.courseId)]);
