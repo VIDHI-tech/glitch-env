@@ -1,0 +1,1 @@
+{"name":"@glitch/shared","version":"0.1.0","private":true,"type":"module","exports":{".":"./src/index.ts"},"scripts":{"typecheck":"tsc --noEmit -p tsconfig.json"},"dependencies":{"zod":"4.6.7"},"devDependencies":{"typescript":"7.0.2"}}

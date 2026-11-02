@@ -12,6 +12,9 @@
     "test": "node --test test/*.test.js",
     "seed": "node scripts/manage.js seed",
     "admin": "node scripts/manage.js admin",
-    "check": "node --check src/server.js && node --check src/platform.js && node --check public/app.js"
-  }
+    "check": "node --check src/server.js && node --check src/platform.js && node --check public/app.js",
+    "m1:typecheck": "pnpm -r --filter \"@glitch/*\" typecheck",
+    "m1:build": "pnpm --filter @glitch/api build && pnpm --filter @glitch/web build"
+  },
+  "packageManager": "pnpm@10.20.0"
 }

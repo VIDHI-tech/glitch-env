@@ -114,3 +114,15 @@ The personal environment works; the entire attached Phase 1 platform is **not** 
 - Existing GLITCH identity-provider integration, email verification, account recovery, and deployment monitoring. The empty repository required a new local password/session implementation.
 - Isolated code execution, intentionally excluded by the personal-workspace requirement. Saved code and private files are supported.
 - Automated cross-browser UI tests and a browser-run full-duration video watch. The UI flows were manually exercised; video completion and real MP4 delivery are integration-tested through the backend.
+
+## New TypeScript foundation (M1 work in progress)
+
+The original `npm start` application remains the working student experience. A separate pnpm workspace has begun under `apps/` and `packages/`. To check its current foundation:
+
+```sh
+COREPACK_HOME=/private/tmp/glitch-corepack pnpm install --frozen-lockfile
+COREPACK_HOME=/private/tmp/glitch-corepack pnpm -r --filter '@glitch/*' typecheck
+COREPACK_HOME=/private/tmp/glitch-corepack pnpm --filter @glitch/api test
+```
+
+On a normal workstation, `pnpm` can use its default Corepack cache; the temporary cache override above only addresses this workspace's sandbox. See `docs/architecture/M1-STATUS.md` for tested scope and remaining work. The new shell requires `DATABASE_URL`, `APP_ORIGIN`, and `BETTER_AUTH_SECRET` for its authentication routes. Its Drizzle migrations have **not** been applied to a production database.

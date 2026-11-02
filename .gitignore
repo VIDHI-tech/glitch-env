@@ -5,3 +5,9 @@ data/*
 .env.*
 !.env.example
 .DS_Store
+
+apps/*/dist/
+apps/web/node_modules/
+apps/api/node_modules/
+packages/*/node_modules/
+*.tsbuildinfo
