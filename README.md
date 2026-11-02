@@ -1,10 +1,10 @@
 # GLITCH — Personal Student Environment
 
-A working local application implements the mandatory personal student workspace with Node.js 24, SQLite and native browser JavaScript. A separate TypeScript, PostgreSQL and React foundation is under development in `apps/` and `packages/`. The SQLite application remains the working student experience.
+A working local application implements the mandatory personal student workspace with Node.js 24, SQLite and native browser JavaScript. A separate TypeScript and PostgreSQL backend now implements the M2 curriculum release, enrollment and personal progression engine. The React app remains an engineering shell. The SQLite application remains the working student UI.
 
 ## Repository status
 
-Source is tracked in [VIDHI-tech/glitch-env](https://github.com/VIDHI-tech/glitch-env). The working SQLite app is on `main`; the M0 architecture branch is `feat/m0-baseline-architecture`, and M1 is stacked on M0 as `feat/m1-foundation`. Neither branch changes the legacy application directories.
+Source is tracked in [VIDHI-tech/glitch-env](https://github.com/VIDHI-tech/glitch-env). M0 and M1 are merged into `main`. M2 development is on `feat/m2-learning-engine`; it preserves the legacy application directories.
 
 ## Run locally
 
@@ -115,9 +115,9 @@ The personal environment works; the entire attached Phase 1 platform is **not** 
 - Isolated code execution, intentionally excluded by the personal-workspace requirement. Saved code and private files are supported.
 - Automated cross-browser UI tests and a browser-run full-duration video watch. M1 adds a Chromium Playwright regression flow; video completion and real MP4 delivery are integration-tested through the legacy backend.
 
-## TypeScript and PostgreSQL foundation (M1)
+## TypeScript and PostgreSQL backend (M1–M2)
 
-The original `npm start` application remains the working student experience. The separate pnpm workspace provides Better Auth registration, verification, sessions, reset, audited administrator grants, and a private PostgreSQL portfolio resource. The React screen is an engineering foundation, not a migrated student dashboard. To verify M1 locally:
+The original `npm start` application remains the working student experience. The pnpm workspace provides Better Auth registration, verification, sessions, reset, audited administrator grants, enrollment-scoped portfolio work, immutable curriculum releases and per-student progression. The React screen is an engineering foundation, not a migrated student dashboard. To verify the backend locally:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -125,8 +125,9 @@ pnpm m1:typecheck
 pnpm m1:build
 pnpm --filter @glitch/api test
 TEST_DATABASE_URL=postgresql://glitch_test:password@127.0.0.1:5432/glitch_m1_test pnpm test:m1:integration
+TEST_DATABASE_URL=postgresql://glitch_test:password@127.0.0.1:5432/glitch_m1_test pnpm test:m2:integration
 npm test
 pnpm test:e2e
 ```
 
-The integration suite creates and drops a separate test database; the supplied account must have `CREATEDB`. It fails if `TEST_DATABASE_URL` is missing. Playwright requires Chromium and starts disposable servers. See `docs/architecture/M1-STATUS.md`, `docs/api/m1-api.md`, and `docs/architecture/M1-TESTING.md` for scope and setup. The new API requires `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, and `EMAIL_FROM` for live email. No production database migration or email delivery is claimed.
+The integration suites create and drop separate test databases; the supplied account must have `CREATEDB`. They fail if `TEST_DATABASE_URL` is missing. Playwright requires Chromium and starts disposable servers. See [M2 architecture](docs/architecture/M2-ENGINE.md), [API routes](docs/api/m2-api.md), and [testing instructions](docs/architecture/M2-TESTING.md). The API requires `DATABASE_URL`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, and `EMAIL_FROM` for live email. Local-only mail capture is available with `MAIL_CAPTURE=1` on a loopback origin. No production database migration, email delivery, Cloudflare playback or React student UI is claimed.

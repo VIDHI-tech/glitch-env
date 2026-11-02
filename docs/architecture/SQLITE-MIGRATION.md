@@ -31,3 +31,7 @@ No production migration ran in M0. The local ignored `data/glitch.sqlite` has ze
 6. Keep old app and backup available for rollback. Do not point production at the new database until acceptance checks and a rollback rehearsal pass.
 
 The M1 review correction scope covers authentication, ownership and PostgreSQL foundations; the importer remains a production cutover prerequisite. This document is a mapping specification, not a claim that the importer or a live data migration exists.
+
+## M2 note
+
+M2 adds immutable `curriculum_releases`, assigned `enrollment_release_units`, and enrollment-keyed progress/work tables. The importer must map every legacy enrollment snapshot to one release and preserve each student's unit order, version, video intervals, exercise attempts, reviews, notes, files and history. No SQLite records were imported in M2. Test the mapping against populated fixtures and rehearse rollback before any production cutover.
