@@ -30,4 +30,4 @@ No production migration ran in M0. The local ignored `data/glitch.sqlite` has ze
 5. Test login transition, private file access, two-student isolation and release pins in staging. Restore from backup and repeat before scheduling cutover.
 6. Keep old app and backup available for rollback. Do not point production at the new database until acceptance checks and a rollback rehearsal pass.
 
-M1 must implement and test the importer against populated representative SQLite fixtures. This document is a mapping specification, not a claim that the importer or a live data migration exists.
+The M1 review correction scope covers authentication, ownership and PostgreSQL foundations; the importer remains a production cutover prerequisite. This document is a mapping specification, not a claim that the importer or a live data migration exists.
