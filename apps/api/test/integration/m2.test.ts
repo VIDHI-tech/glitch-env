@@ -97,6 +97,7 @@ test('M2 learning journey and isolation',async t=>{
   const attempts=(await get(`/api/v1/release-units/${units[2]}/attempts`,aCookie)).json();assert.equal(attempts[0].answer,'Original answer');assert.equal(attempts[1].answer,'Revised answer');
   assert.equal((await post(`/api/v1/instructor/attempts/${revised.json().id}/review`,{decision:'completed',message:'Approved'},staffCookie)).statusCode,200);
   assert.equal((await post(`/api/v1/instructor/attempts/${submitted.json().id}/review`,{decision:'completed',message:'Stale'},staffCookie)).statusCode,409);
+  assert.equal((await post(`/api/v1/release-units/${units[2]}/attempts`,{answer:'Revision after completion'},aCookie)).statusCode,409);
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json().percent,100);
   const artifact=await post('/api/v1/portfolio/artifacts',{courseId,title:'My work',body:'Private'},aCookie);assert.equal(artifact.statusCode,201,artifact.body);artifactId=artifact.json().id;assert.equal((await get(`/api/v1/portfolio/artifacts/${artifactId}`,bCookie)).statusCode,404);
   const history=(await get(`/api/v1/enrollments/${aEnrollment}/activity`,aCookie)).json();assert.ok(history.items.length>=5);
