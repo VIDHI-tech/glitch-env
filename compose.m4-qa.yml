@@ -1,0 +1,15 @@
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: glitch_m4_qa
+  media-init:
+    environment:
+      R2_CORS_ORIGIN: http://127.0.0.1:5173
+  api:
+    environment:
+      DATABASE_URL: postgresql://glitch:local_dev_only@postgres:5432/glitch_m4_qa
+      APP_ORIGIN: http://127.0.0.1:5173
+      R2_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+  hls-worker:
+    environment:
+      DATABASE_URL: postgresql://glitch:local_dev_only@postgres:5432/glitch_m4_qa

@@ -207,6 +207,11 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
   const who=await guardedCourse(request,reply,request.params.id);if(!who)return;
   const r=await pool.query('SELECT e.id,e.student_id,e.state,e.release_id,e.created_at,u.name,u.email,cr.release_number FROM enrollments e JOIN "user" u ON u.id=e.student_id JOIN curriculum_releases cr ON cr.id=e.release_id WHERE e.course_id=$1 ORDER BY e.created_at DESC',[request.params.id]);return r.rows;
  });
+ app.get('/api/v1/admin/builder/students',async(request,reply)=>{
+  const who=await actor(request,reply);if(!who)return;if(!await superAdmin(who))return failure(reply,403,'Super administrator required');
+  const r=await pool.query("SELECT u.id,u.name,u.email FROM \"user\" u JOIN user_role_assignments a ON a.user_id=u.id AND a.role='student' WHERE u.email_verified=true ORDER BY u.name,u.email LIMIT 500");
+  return r.rows;
+ });
  app.get<{Params:{id:string}}>('/api/v1/admin/builder/enrollments/:id/progress',async(request,reply)=>{
   const who=await actor(request,reply);if(!who)return;if(!uuid.safeParse(request.params.id).success)return failure(reply,404,'Enrollment unavailable');
   const e=await pool.query('SELECT e.*,u.name,u.email FROM enrollments e JOIN "user" u ON u.id=e.student_id WHERE e.id=$1',[request.params.id]);if(!e.rowCount)return failure(reply,404,'Enrollment unavailable');
