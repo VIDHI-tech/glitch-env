@@ -25,7 +25,7 @@ before(async()=>{
  db=createDatabase(dbUrl.toString());await migrateDatabase(db,migrationsFolder);
  app=buildApp({databaseUrl:dbUrl.toString(),origin,secret:'test-only-better-auth-secret-minimum-32-characters',mailer});
 });
-after(async()=>{await app?.close();await db?.pool.end();if(admin){await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);await admin.end();}});
+after(async()=>{await app?.close();await db?.pool.end();if(admin){await admin.query(`DROP DATABASE IF EXISTS ${name}`);await admin.end();}});
 test('Migrations create required constraints and reapply without changing table count',async()=>{
  const tables=await db.pool.query("SELECT count(*)::int n FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('user','session','account','verification','courses','user_role_assignments','staff_student_assignments','portfolio_artifacts','audit_events')");assert.equal(tables.rows[0].n,9);
  const beforeCount=await db.pool.query("SELECT count(*)::int n FROM information_schema.tables WHERE table_schema='public'");await migrateDatabase(db,migrationsFolder);const afterCount=await db.pool.query("SELECT count(*)::int n FROM information_schema.tables WHERE table_schema='public'");assert.equal(afterCount.rows[0].n,beforeCount.rows[0].n);
