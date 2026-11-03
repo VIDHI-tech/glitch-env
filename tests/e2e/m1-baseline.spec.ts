@@ -35,8 +35,8 @@ test('existing administrator course management renders',async({page})=>{
  await expect(page.getByRole('heading',{name:'Course management'})).toBeVisible();
  await page.screenshot({path:`${artifacts}/existing-admin.png`});
 });
-test('new React foundation renders as an engineering migration screen',async({page})=>{
+test('React admin application renders its login screen',async({page})=>{
  await page.goto('http://127.0.0.1:5173');
- await expect(page.getByRole('heading',{name:'Your learning space is being upgraded.'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sign in to GLITCH'})).toBeVisible();
  await page.screenshot({path:`${artifacts}/m1-react-foundation.png`});
 });
