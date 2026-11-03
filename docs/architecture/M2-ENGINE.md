@@ -61,6 +61,8 @@ The server orders a student's assigned release units. A required unit blocks lat
 
 A draft or note uses a revision number; stale writes return 409. Attempts are immutable rows with increasing attempt numbers. Feedback and decisions refer to the exact attempt. The instructor must retain a privileged role and an exact staff/student/course assignment at review time.
 
+Enrollment activity history is ordered by event time and ID. Its cursor is accepted only when it belongs to the same enrollment, so one student's cursor cannot expose or page through another student's history.
+
 ## Video test adapter
 
 M2 returns `adapter: test-video` and the pinned duration; no media URL or Cloudflare credential is exposed. Events are accepted only for the current active session, owned enrollment and unlocked unit. A new session invalidates earlier sessions and resumes the saved position. Forward watched coverage is bounded by server elapsed time at a maximum 2x playback rate. Seek events change position without creating coverage. Overlapping intervals are merged for percentages; repeated heartbeats at the same position add no coverage. Completion requires at least 90% distinct coverage and a valid end event near the pinned duration. Actual media authorization belongs to M3.

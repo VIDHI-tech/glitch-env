@@ -128,4 +128,14 @@ test('M2 learning journey and isolation',async t=>{
   const final=await post(`/api/v1/release-units/${second}/attempts`,{answer:'Final answer'},bCookie);assert.equal(final.statusCode,201,final.body);assert.equal(final.json().state,'completed');
   assert.equal((await get(`/api/v1/enrollments/${enrolled.json().id}/roadmap`,bCookie)).json().percent,100);
  });
+ await t.test('activity pages are chronological and cursors stay within one enrollment',async()=>{
+  await db.pool.query("INSERT INTO student_learning_activity(enrollment_id,event,created_at) SELECT $1,'pagination_probe',now()+g*interval '1 second' FROM generate_series(1,55) g",[aEnrollment]);
+  const first=await get(`/api/v1/enrollments/${aEnrollment}/activity`,aCookie);assert.equal(first.statusCode,200,first.body);
+  const page1=first.json();assert.equal(page1.items.length,50);assert.ok(page1.nextCursor);
+  assert.equal(page1.items[0].event,'pagination_probe');
+  for(let i=1;i<page1.items.length;i++)assert.ok(new Date(page1.items[i-1].created_at).getTime()>=new Date(page1.items[i].created_at).getTime());
+  const second=await get(`/api/v1/enrollments/${aEnrollment}/activity?cursor=${page1.nextCursor}`,aCookie);assert.equal(second.statusCode,200,second.body);
+  const page2=second.json();assert.ok(page2.items.length>=5);assert.equal(new Set([...page1.items,...page2.items].map((x:{id:string})=>x.id)).size,page1.items.length+page2.items.length);
+  assert.equal((await get(`/api/v1/enrollments/${bEnrollment}/activity?cursor=${page1.nextCursor}`,bCookie)).statusCode,422);
+ });
 });

@@ -54,7 +54,7 @@ These local checks are backed by [GitHub CI run #1](https://github.com/VIDHI-tec
 - TypeScript typecheck and API/web builds: passed.
 - API unit tests: **2 passed, 0 failed, 0 skipped**.
 - M1 PostgreSQL integration: **4 passed, 0 failed, 0 skipped**.
-- M2 PostgreSQL HTTP integration: **7 passed, 0 failed, 0 skipped**, including the parent journey and six named subtests. It creates and drops a disposable database, applies migrations `0000`–`0008`, and tests cross-release constraints, account-specific progress, video resume, instructor review, feedback acknowledgement, suspension and release pinning.
+- M2 PostgreSQL HTTP integration: **8 passed, 0 failed, 0 skipped**, including the parent journey and seven named subtests. It creates and drops a disposable database, applies migrations `0000`–`0008`, and tests cross-release constraints, account-specific progress, video resume, instructor review, feedback acknowledgement, suspension, release pinning, and owner-scoped chronological activity pagination.
 - Legacy Node/SQLite regression: **22 passed, 0 failed, 0 skipped**. Legacy syntax check passed.
 - Playwright browser regression: **3 passed, 0 failed, 0 skipped** against the old working UI and React engineering shell.
 
