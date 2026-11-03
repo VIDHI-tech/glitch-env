@@ -27,7 +27,7 @@ erDiagram
 
 ## Publishing and enrollment
 
-The administrator prepares weeks, days, chapters, learning units and version rows in the database test harness. The M2 publishing endpoint accepts ordered ready unit-version IDs, required flags, duration, content and conditions. It verifies each version belongs to the course, snapshots those values in one transaction, records a publish event, and increments the course release number. PostgreSQL triggers reject update/delete of published releases, release units and conditions, and reject changes to published version content fields. A later publish creates a new release.
+The administrator prepares weeks, days, chapters, learning units and version rows in the database test harness. The M2 publishing endpoint accepts ordered ready unit-version IDs, required flags, duration, content and conditions. It locks the course, creates a `building` release, snapshots unit and week/day/chapter labels and positions, validates condition capabilities, and switches the release to `published` in the same transaction. The lock serializes release numbering. Migration `0009` adds database triggers that reject inserts, updates and deletes of units and conditions after finalization. Published version fields and exercise definitions are immutable. Roadmaps read the release snapshot, so draft hierarchy edits do not change enrolled students' releases. A later publish creates a new release without changing old enrollments.
 
 Admin enrollment chooses the latest release, inserts the enrollment and all assigned units in one transaction, and records `enrolled`. One enrollment per student/course is allowed. A suspended enrollment preserves work but cannot open units or mutate learning records. Suspending and recording its event share a transaction. Existing enrollments never switch releases on publish. A managed release migration endpoint is not implemented; production migration must be explicit and reviewed.
 
@@ -61,6 +61,8 @@ The server orders a student's assigned release units. A required unit blocks lat
 
 A draft or note uses a revision number; stale writes return 409. Attempts are immutable rows with increasing attempt numbers. Feedback and decisions refer to the exact attempt. The instructor must retain a privileged role and an exact staff/student/course assignment at review time.
 
+Learning mutations lock the enrollment, then check its current state, ownership and unlock rules in that transaction. One unresolved submission is allowed per exercise; `feedback_then_continue` rejects another submission until feedback is acknowledged. Only the newest awaiting-review attempt can be reviewed, and a later review cannot downgrade completed progress. Repeated acknowledgement and video end requests have no duplicate completion event.
+
 Enrollment activity history is ordered by event time and ID. Its cursor is accepted only when it belongs to the same enrollment, so one student's cursor cannot expose or page through another student's history.
 
 ## Video test adapter
@@ -69,4 +71,4 @@ M2 returns `adapter: test-video` and the pinned duration; no media URL or Cloudf
 
 ## Migration and rollout
 
-Migrations `0005` and `0006` create the M2 schema and portfolio enrollment link; `0007` adds integrity constraints and immutable-release triggers; `0008` constrains states and policy values. Apply from an empty disposable PostgreSQL database first. No production database or SQLite data was migrated. The SQLite importer, backup and rollback rehearsal remain required before a cutover. Keep the old application available until feature parity and data migration are verified.
+Migrations `0005` and `0006` create the M2 schema and portfolio enrollment link; `0007` adds integrity constraints; `0008` constrains states and policy values; forward-only migration `0009` adds publication finalization and hierarchy snapshots; `0010` protects the published version state. Apply from an empty disposable PostgreSQL database first. No production database or SQLite data was migrated. The SQLite importer, backup and rollback rehearsal remain required before a cutover. Keep the old application available until feature parity and data migration are verified.

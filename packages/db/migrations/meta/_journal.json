@@ -71,6 +71,13 @@
       "when": 1793689000000,
       "tag": "0009_m2-publication-finalization",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793691760000,
+      "tag": "0010_m2-published-version-state",
+      "breakpoints": true
     }
   ]
 }

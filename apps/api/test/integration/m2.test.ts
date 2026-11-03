@@ -22,6 +22,19 @@ let root:string,a:string,b:string,c:string,staff:string,rootCookie:string,aCooki
 before(async()=>{admin=new Pool({connectionString:adminUrl.toString()});await admin.query(`CREATE DATABASE ${name}`);db=createDatabase(dbUrl.toString());await migrateDatabase(db,resolve(process.cwd(),'../../packages/db/migrations'));app=buildApp({databaseUrl:dbUrl.toString(),origin,secret:'m2-test-only-better-auth-secret-minimum-32-characters',mailer,clock:()=>now});});
 after(async()=>{if(process.env.M2_DEMO_OUTPUT)await writeFile(process.env.M2_DEMO_OUTPUT,JSON.stringify({description:'Disposable M2 PostgreSQL HTTP demonstration; cookies omitted',steps:trace},null,2)+'\n');await app?.close();await db?.pool.end();if(admin){await admin.query(`DROP DATABASE IF EXISTS ${name}`);await admin.end();}});
 test('M2 learning journey and isolation',async t=>{
+ async function fixture(kinds:string[],policies:Record<number,string>={}){
+  const course=(await post('/api/v1/admin/courses',{title:`Hardening ${crypto.randomUUID()}`},rootCookie)).json().id as string;
+  const week=(await db.pool.query('INSERT INTO weeks(course_id,position,title) VALUES($1,1,$2) RETURNING id',[course,'Week'])).rows[0].id;
+  const day=(await db.pool.query('INSERT INTO days(week_id,position,title) VALUES($1,1,$2) RETURNING id',[week,'Day'])).rows[0].id;
+  const chapter=(await db.pool.query('INSERT INTO chapters(day_id,position,title) VALUES($1,1,$2) RETURNING id',[day,'Chapter'])).rows[0].id;
+  const versions:string[]=[];
+  for(const [i,kind] of kinds.entries()){
+   const unit=(await db.pool.query('INSERT INTO learning_units(chapter_id,position,kind) VALUES($1,$2,$3) RETURNING id',[chapter,i+1,kind])).rows[0].id;
+   versions.push((await db.pool.query("INSERT INTO learning_unit_versions(unit_id,version,title,publication_state) VALUES($1,1,$2,'ready_for_review') RETURNING id",[unit,`Unit ${i+1}`])).rows[0].id);
+   if(kind==='exercise')await db.pool.query('INSERT INTO exercise_definitions(unit_version_id,completion_policy) VALUES($1,$2)',[versions[i],policies[i]??'submit_to_complete']);
+  }
+  return {course,versions};
+ }
  await t.test('administrator publishes an immutable four-unit release and enrolls two students',async()=>{
   const suffix=crypto.randomUUID();root=await signup(`root-${suffix}@example.test`);a=await signup(`a-${suffix}@example.test`);b=await signup(`b-${suffix}@example.test`);staff=await signup(`staff-${suffix}@example.test`);rootCookie=await login(`root-${suffix}@example.test`);aCookie=await login(`a-${suffix}@example.test`);bCookie=await login(`b-${suffix}@example.test`);staffCookie=await login(`staff-${suffix}@example.test`);await bootstrapFirstSuperAdmin(db.pool,`root-${suffix}@example.test`);
   const course=await post('/api/v1/admin/courses',{title:'M2 HTTP Journey'},rootCookie);assert.equal(course.statusCode,200,course.body);courseId=course.json().id;
@@ -41,9 +54,12 @@ test('M2 learning journey and isolation',async t=>{
   await assert.rejects(db.pool.query('UPDATE curriculum_release_units SET content=$1 WHERE id=$2',['tamper',units[0]]));
   await assert.rejects(db.pool.query('INSERT INTO curriculum_release_units(release_id,unit_id,unit_version_id,position,required,kind,completion_policy,content,week_id,week_title,week_position,day_id,day_title,day_position,chapter_id,chapter_title,chapter_position) SELECT release_id,unit_id,unit_version_id,99,required,kind,completion_policy,content,week_id,week_title,week_position,day_id,day_title,day_position,chapter_id,chapter_title,chapter_position FROM curriculum_release_units WHERE id=$1',[units[0]]));
   await assert.rejects(db.pool.query("INSERT INTO release_conditions(release_unit_id,prerequisite_release_unit_id,condition_type) VALUES($1,$2,'completed')",[units[1],units[0]]));
+  await assert.rejects(db.pool.query("UPDATE release_conditions SET condition_type='completed' WHERE release_unit_id=$1",[units[3]]));
   await assert.rejects(db.pool.query('DELETE FROM release_conditions WHERE release_unit_id=$1',[units[3]]));
   await assert.rejects(db.pool.query('DELETE FROM curriculum_release_units WHERE id=$1',[units[0]]));
+  await assert.rejects(db.pool.query('DELETE FROM curriculum_releases WHERE id=$1',[releaseId]));
   await assert.rejects(db.pool.query("UPDATE exercise_definitions SET prompt='tampered' WHERE unit_version_id=$1",[versions[2]]));
+  await assert.rejects(db.pool.query("UPDATE learning_unit_versions SET publication_state='ready_for_review' WHERE id=$1",[versions[0]]));
   await db.pool.query("UPDATE days SET title='Changed draft day' WHERE id=$1",[day]);
   await db.pool.query("UPDATE chapters SET title='Changed draft chapter' WHERE id=$1",[chapter]);
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json().days[0].title,'Day 1');
@@ -52,6 +68,7 @@ test('M2 learning journey and isolation',async t=>{
  await t.test('video watch coverage, new login resume and independent unlocks',async()=>{
   const start=await post(`/api/v1/release-units/${units[0]}/video-sessions`,{},aCookie);assert.equal(start.statusCode,201,start.body);let sid=start.json().id;assert.equal(start.json().adapter,'test-video');
   const seek=await post(`/api/v1/video-sessions/${sid}/events`,{positionSeconds:10,type:'seek'},aCookie);assert.equal(seek.statusCode,200);assert.equal(seek.json().watchedSeconds,0);
+  assert.equal((await post(`/api/v1/video-sessions/${sid}/events`,{positionSeconds:1,type:'heartbeat'},bCookie)).statusCode,404);
   assert.equal((await post(`/api/v1/video-sessions/${sid}/events`,{positionSeconds:10,type:'end'},aCookie)).json().completed,false);
   await post(`/api/v1/video-sessions/${sid}/events`,{positionSeconds:0,type:'seek'},aCookie);
   now+=2000;const p=await post(`/api/v1/video-sessions/${sid}/events`,{positionSeconds:4,type:'heartbeat'},aCookie);assert.equal(p.statusCode,200,p.body);assert.equal(p.json().watchedSeconds,4);
@@ -66,6 +83,9 @@ test('M2 learning journey and isolation',async t=>{
   const second=await post(`/api/v1/release-units/${units[1]}/video-sessions`,{},aCookie);assert.equal(second.statusCode,201,second.body);for(const position of [2,4,6,8,10]){now+=1000;const e=await post(`/api/v1/video-sessions/${second.json().id}/events`,{positionSeconds:position,type:position===10?'end':'heartbeat'},aCookie);assert.equal(e.statusCode,200,e.body);}
   const draft=await put(`/api/v1/release-units/${units[2]}/exercise-draft`,{answer:'First draft',revision:0},aCookie);assert.equal(draft.statusCode,200,draft.body);assert.equal((await put(`/api/v1/release-units/${units[2]}/exercise-draft`,{answer:'Stale',revision:0},aCookie)).statusCode,409);
   const note=await put(`/api/v1/release-units/${units[2]}/note`,{body:'Private note',revision:0},aCookie);assert.equal(note.statusCode,200,note.body);assert.equal((await get(`/api/v1/release-units/${units[2]}`,aCookie)).json().draft,'First draft');assert.equal((await get(`/api/v1/release-units/${units[2]}`,bCookie)).statusCode,404);
+  assert.equal((await put(`/api/v1/release-units/${units[2]}/exercise-draft`,{answer:'Intrusion',revision:1},bCookie)).statusCode,404);
+  assert.equal((await put(`/api/v1/release-units/${units[2]}/note`,{body:'Intrusion',revision:1},bCookie)).statusCode,404);
+  assert.equal((await post(`/api/v1/release-units/${units[2]}/attempts`,{answer:'Intrusion'},bCookie)).statusCode,404);
   assert.equal((await get(`/api/v1/release-units/${units[3]}`,aCookie)).statusCode,404);
   const submitted=await post(`/api/v1/release-units/${units[2]}/attempts`,{answer:'Original answer'},aCookie);assert.equal(submitted.statusCode,201,submitted.body);assert.equal(submitted.json().state,'awaiting_review');assert.equal((await get(`/api/v1/release-units/${units[3]}`,aCookie)).statusCode,200);
   assert.equal((await get(`/api/v1/release-units/${units[2]}/attempts`,bCookie)).json().length,0);
@@ -76,6 +96,7 @@ test('M2 learning journey and isolation',async t=>{
   const revised=await post(`/api/v1/release-units/${units[2]}/attempts`,{answer:'Revised answer'},aCookie);assert.equal(revised.statusCode,201,revised.body);assert.equal(revised.json().attempt_number,2);
   const attempts=(await get(`/api/v1/release-units/${units[2]}/attempts`,aCookie)).json();assert.equal(attempts[0].answer,'Original answer');assert.equal(attempts[1].answer,'Revised answer');
   assert.equal((await post(`/api/v1/instructor/attempts/${revised.json().id}/review`,{decision:'completed',message:'Approved'},staffCookie)).statusCode,200);
+  assert.equal((await post(`/api/v1/instructor/attempts/${submitted.json().id}/review`,{decision:'completed',message:'Stale'},staffCookie)).statusCode,409);
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json().percent,100);
   const artifact=await post('/api/v1/portfolio/artifacts',{courseId,title:'My work',body:'Private'},aCookie);assert.equal(artifact.statusCode,201,artifact.body);artifactId=artifact.json().id;assert.equal((await get(`/api/v1/portfolio/artifacts/${artifactId}`,bCookie)).statusCode,404);
   const history=(await get(`/api/v1/enrollments/${aEnrollment}/activity`,aCookie)).json();assert.ok(history.items.length>=5);
@@ -91,8 +112,9 @@ test('M2 learning journey and isolation',async t=>{
   await assert.rejects(db.pool.query("INSERT INTO release_conditions(release_unit_id,prerequisite_release_unit_id,condition_type) VALUES($1,$2,'completed')",[next.json().unitIds[1],units[0]]));
   await assert.rejects(db.pool.query('UPDATE learning_unit_versions SET title=$1 WHERE id=$2',['Tampered',oldVersions[0].unit_version_id]));
   c=await signup(`c-${crypto.randomUUID()}@example.test`);const ce=await post('/api/v1/admin/enrollments',{studentId:c,courseId},rootCookie);assert.equal(ce.statusCode,201,ce.body);assert.equal(ce.json().release_id,next.json().id);
-  assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json().releaseId,releaseId);
+  const pinned=(await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json();assert.equal(pinned.releaseId,releaseId);assert.equal(pinned.percent,old.percent);
   assert.equal((await get(`/api/v1/release-units/${units[0]}`,aCookie)).statusCode,200);
+  assert.equal((await get(`/api/v1/release-units/${units[2]}`,aCookie)).statusCode,200);
   assert.equal((await post(`/api/v1/admin/enrollments/${aEnrollment}/suspend`,{},rootCookie)).statusCode,200);
   assert.equal((await get(`/api/v1/release-units/${units[0]}`,aCookie)).statusCode,404);
   assert.equal((await put(`/api/v1/release-units/${units[2]}/note`,{body:'Blocked',revision:1},aCookie)).statusCode,404);
@@ -111,6 +133,7 @@ test('M2 learning journey and isolation',async t=>{
   const release=await post(`/api/v1/admin/courses/${course}/releases`,{units:[{unitVersionId:versions[0]},{unitVersionId:versions[1],required:false,content:'Feedback text',conditions:[{prerequisiteIndex:0,type:'first_attempt_submitted'}]},{unitVersionId:versions[2],durationSeconds:10}]},rootCookie);assert.equal(release.statusCode,201,release.body);
   const [exercise,feedback,video]=release.json().unitIds;const e=await post('/api/v1/admin/enrollments',{studentId:b,courseId:course},rootCookie);assert.equal(e.statusCode,201,e.body);
   const submitted=await post(`/api/v1/release-units/${exercise}/attempts`,{answer:'My answer'},bCookie);assert.equal(submitted.statusCode,201,submitted.body);assert.equal(submitted.json().state,'submitted');
+  assert.equal((await post(`/api/v1/release-units/${exercise}/attempts`,{answer:'Premature revision'},bCookie)).statusCode,409);
   assert.equal((await get(`/api/v1/release-units/${video}`,bCookie)).statusCode,404);
   assert.equal((await get(`/api/v1/release-units/${feedback}`,bCookie)).statusCode,200);
   assert.equal((await get(`/api/v1/enrollments/${e.json().id}/roadmap`,bCookie)).json().currentUnitId,feedback);
@@ -126,8 +149,9 @@ test('M2 learning journey and isolation',async t=>{
   await db.pool.query("INSERT INTO exercise_definitions(unit_version_id,completion_policy) VALUES($1,'revision_required'),($2,'submit_to_complete')",versions);
   const release=await post(`/api/v1/admin/courses/${course}/releases`,{units:versions.map(unitVersionId=>({unitVersionId}))},rootCookie);assert.equal(release.statusCode,201,release.body);const [first,second]=release.json().unitIds;
   const enrolled=await post('/api/v1/admin/enrollments',{studentId:b,courseId:course},rootCookie);assert.equal(enrolled.statusCode,201,enrolled.body);
-  assert.equal((await post('/api/v1/admin/staff-assignments',{staffId:staff,studentId:b,courseId:course},rootCookie)).statusCode,200);
   const original=await post(`/api/v1/release-units/${first}/attempts`,{answer:'Original'},bCookie);assert.equal(original.statusCode,201,original.body);
+  assert.equal((await post(`/api/v1/instructor/attempts/${original.json().id}/review`,{decision:'needs_revision',message:'Wrong assignment'},staffCookie)).statusCode,404);
+  assert.equal((await post('/api/v1/admin/staff-assignments',{staffId:staff,studentId:b,courseId:course},rootCookie)).statusCode,200);
   assert.equal((await post(`/api/v1/instructor/attempts/${original.json().id}/review`,{decision:'completed',message:'Too early'},staffCookie)).statusCode,409);
   assert.equal((await post(`/api/v1/instructor/attempts/${original.json().id}/review`,{decision:'needs_revision',message:'Please revise'},staffCookie)).statusCode,200);
   const revised=await post(`/api/v1/release-units/${first}/attempts`,{answer:'Revised'},bCookie);assert.equal(revised.statusCode,201,revised.body);
@@ -135,6 +159,42 @@ test('M2 learning journey and isolation',async t=>{
   assert.equal((await get(`/api/v1/release-units/${second}`,bCookie)).statusCode,200);
   const final=await post(`/api/v1/release-units/${second}/attempts`,{answer:'Final answer'},bCookie);assert.equal(final.statusCode,201,final.body);assert.equal(final.json().state,'completed');
   assert.equal((await get(`/api/v1/enrollments/${enrolled.json().id}/roadmap`,bCookie)).json().percent,100);
+ });
+ await t.test('publication rejects impossible and duplicate prerequisites',async()=>{
+  const {course,versions}=await fixture(['video','exercise','exercise','feedback'],{1:'instructor_approval',2:'submit_to_complete'});
+  const unitsFor=(conditions:Record<number,Array<{prerequisiteIndex:number;type:string}>>={})=>versions.map((unitVersionId,i)=>({unitVersionId,...(i===0?{durationSeconds:10}:{}),...(conditions[i]?{conditions:conditions[i]}:{})}));
+  const publish=(conditions:Record<number,Array<{prerequisiteIndex:number;type:string}>>)=>post(`/api/v1/admin/courses/${course}/releases`,{units:unitsFor(conditions)},rootCookie);
+  assert.equal((await publish({1:[{prerequisiteIndex:0,type:'first_attempt_submitted'}]})).statusCode,422);
+  assert.equal((await publish({1:[{prerequisiteIndex:0,type:'review_approved'}]})).statusCode,422);
+  assert.equal((await publish({2:[{prerequisiteIndex:2,type:'completed'}]})).statusCode,422);
+  assert.equal((await publish({3:[{prerequisiteIndex:2,type:'review_approved'}]})).statusCode,422);
+  assert.equal((await publish({2:[{prerequisiteIndex:1,type:'completed'},{prerequisiteIndex:1,type:'completed'}]})).statusCode,422);
+  assert.equal((await post(`/api/v1/admin/courses/${course}/releases`,{units:[]},rootCookie)).statusCode,422);
+  assert.equal((await post(`/api/v1/admin/courses/${course}/releases`,{units:[unitsFor()[0],unitsFor()[0]]},rootCookie)).statusCode,422);
+  const valid=await publish({1:[{prerequisiteIndex:0,type:'completed'}],2:[{prerequisiteIndex:1,type:'review_approved'}],3:[{prerequisiteIndex:1,type:'first_attempt_submitted'}]});assert.equal(valid.statusCode,201,valid.body);
+  assert.equal(valid.json().release_number,1);
+  const feedbackFixture=await fixture(['exercise','video','feedback'],{0:'feedback_then_continue'});
+  const impossible=await post(`/api/v1/admin/courses/${feedbackFixture.course}/releases`,{units:[{unitVersionId:feedbackFixture.versions[0]},{unitVersionId:feedbackFixture.versions[1],durationSeconds:10},{unitVersionId:feedbackFixture.versions[2],conditions:[{prerequisiteIndex:0,type:'first_attempt_submitted'}]}]},rootCookie);assert.equal(impossible.statusCode,422);
+ });
+ await t.test('simultaneous submissions, reviews, suspension and completion remain single',async()=>{
+  const submitFixture=await fixture(['exercise']);const submitRelease=await post(`/api/v1/admin/courses/${submitFixture.course}/releases`,{units:[{unitVersionId:submitFixture.versions[0]}]},rootCookie);assert.equal(submitRelease.statusCode,201,submitRelease.body);
+  const submitUnit=submitRelease.json().unitIds[0];const se=await post('/api/v1/admin/enrollments',{studentId:b,courseId:submitFixture.course},rootCookie);assert.equal(se.statusCode,201);
+  const simultaneous=await Promise.all([post(`/api/v1/release-units/${submitUnit}/attempts`,{answer:'One'},bCookie),post(`/api/v1/release-units/${submitUnit}/attempts`,{answer:'Two'},bCookie)]);assert.deepEqual(simultaneous.map(x=>x.statusCode).sort(),[201,409]);
+  assert.equal((await db.pool.query('SELECT count(*)::int n FROM exercise_attempts WHERE enrollment_id=$1',[se.json().id])).rows[0].n,1);
+  const approvalFixture=await fixture(['exercise'],{0:'instructor_approval'});const approvalRelease=await post(`/api/v1/admin/courses/${approvalFixture.course}/releases`,{units:[{unitVersionId:approvalFixture.versions[0]}]},rootCookie);assert.equal(approvalRelease.statusCode,201);
+  const approvalUnit=approvalRelease.json().unitIds[0];const ae=await post('/api/v1/admin/enrollments',{studentId:a,courseId:approvalFixture.course},rootCookie);assert.equal(ae.statusCode,201);assert.equal((await post('/api/v1/admin/staff-assignments',{staffId:staff,studentId:a,courseId:approvalFixture.course},rootCookie)).statusCode,200);
+  const pending=await Promise.all([post(`/api/v1/release-units/${approvalUnit}/attempts`,{answer:'One'},aCookie),post(`/api/v1/release-units/${approvalUnit}/attempts`,{answer:'Two'},aCookie)]);assert.deepEqual(pending.map(x=>x.statusCode).sort(),[201,409]);const attempt=pending.find(x=>x.statusCode===201)!.json().id;
+  const decisions=await Promise.all([post(`/api/v1/instructor/attempts/${attempt}/review`,{decision:'completed',message:'Approved'},staffCookie),post(`/api/v1/instructor/attempts/${attempt}/review`,{decision:'needs_revision',message:'Too late'},staffCookie)]);assert.deepEqual(decisions.map(x=>x.statusCode).sort(),[200,409]);
+  const finalState=(await get(`/api/v1/enrollments/${ae.json().id}/roadmap`,aCookie)).json().units[0].state;assert.ok(['completed','needs_revision'].includes(finalState));
+  if(finalState==='completed')assert.equal((await post(`/api/v1/release-units/${approvalUnit}/attempts`,{answer:'Late revision'},aCookie)).statusCode,409);
+  assert.equal((await db.pool.query('SELECT count(*)::int n FROM exercise_reviews WHERE attempt_id=$1',[attempt])).rows[0].n,1);
+  const suspensionFixture=await fixture(['exercise']);const suspensionRelease=await post(`/api/v1/admin/courses/${suspensionFixture.course}/releases`,{units:[{unitVersionId:suspensionFixture.versions[0]}]},rootCookie);const su=suspensionRelease.json().unitIds[0];const enrollmentToSuspend=await post('/api/v1/admin/enrollments',{studentId:b,courseId:suspensionFixture.course},rootCookie);const eid=enrollmentToSuspend.json().id;
+  const raced=await Promise.all([post(`/api/v1/release-units/${su}/attempts`,{answer:'Racing'},bCookie),post(`/api/v1/admin/enrollments/${eid}/suspend`,{},rootCookie)]);assert.equal(raced[1].statusCode,200);assert.ok([201,404].includes(raced[0].statusCode));assert.equal((await post(`/api/v1/release-units/${su}/attempts`,{answer:'After suspension'},bCookie)).statusCode,404);
+  const count=(await db.pool.query("SELECT count(*)::int n FROM student_learning_activity WHERE enrollment_id=$1 AND event='completed'",[aEnrollment])).rows[0].n;
+  const repeated=await Promise.all([post(`/api/v1/release-units/${units[3]}/complete`,{},aCookie),post(`/api/v1/release-units/${units[3]}/complete`,{},aCookie)]);assert.deepEqual(repeated.map(x=>x.statusCode),[200,200]);assert.equal((await db.pool.query("SELECT count(*)::int n FROM student_learning_activity WHERE enrollment_id=$1 AND event='completed'",[aEnrollment])).rows[0].n,count+1);
+  const videoSession=(await db.pool.query('SELECT id FROM video_watch_sessions WHERE enrollment_id=$1 AND release_unit_id=$2 ORDER BY last_event_at DESC LIMIT 1',[aEnrollment,units[1]])).rows[0].id;
+  const videoCount=(await db.pool.query("SELECT count(*)::int n FROM student_learning_activity WHERE enrollment_id=$1 AND release_unit_id=$2 AND event='video_completed'",[aEnrollment,units[1]])).rows[0].n;
+  const ends=await Promise.all([post(`/api/v1/video-sessions/${videoSession}/events`,{positionSeconds:10,type:'end'},aCookie),post(`/api/v1/video-sessions/${videoSession}/events`,{positionSeconds:10,type:'end'},aCookie)]);assert.deepEqual(ends.map(x=>x.statusCode),[200,200]);assert.equal((await db.pool.query("SELECT count(*)::int n FROM student_learning_activity WHERE enrollment_id=$1 AND release_unit_id=$2 AND event='video_completed'",[aEnrollment,units[1]])).rows[0].n,videoCount);
  });
  await t.test('activity pages are chronological and cursors stay within one enrollment',async()=>{
   await db.pool.query("INSERT INTO student_learning_activity(enrollment_id,event,created_at) SELECT $1,'pagination_probe',now()+g*interval '1 second' FROM generate_series(1,55) g",[aEnrollment]);
