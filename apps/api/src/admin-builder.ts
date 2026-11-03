@@ -133,6 +133,31 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
    await c.query('COMMIT');return {id:current.rows[0].id,position:other.position};
   }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
  });
+ app.delete<{Params:{type:string;id:string}}>('/api/v1/admin/builder/hierarchy/:type/:id',async(request,reply)=>{
+  const type=hierarchyType.safeParse(request.params.type);if(!type.success||!uuid.safeParse(request.params.id).success)return failure(reply,422,'Invalid hierarchy item');
+  const table=hierarchy[type.data],row=await pool.query(`SELECT ${table.parent} parent_id FROM ${table.table} WHERE id=$1`,[request.params.id]);
+  const courseId=row.rowCount?await courseForHierarchy(type.data,row.rows[0].parent_id):null;
+  if(!courseId)return failure(reply,404,'Hierarchy item unavailable');if(!await guardedCourse(request,reply,courseId))return;
+  const child=type.data==='weeks'?{table:'days',parent:'week_id'}:type.data==='days'?{table:'chapters',parent:'day_id'}:{table:'learning_units',parent:'chapter_id'};
+  const c=await pool.connect();try{await c.query('BEGIN');await c.query('SELECT id FROM courses WHERE id=$1 FOR UPDATE',[courseId]);
+   if((await c.query(`SELECT 1 FROM ${child.table} WHERE ${child.parent}=$1 LIMIT 1`,[request.params.id])).rowCount){await c.query('ROLLBACK');return failure(reply,409,'Remove child drafts first; published content cannot be deleted');}
+   await c.query(`DELETE FROM ${table.table} WHERE id=$1`,[request.params.id]);await c.query('COMMIT');return {deleted:true};
+  }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
+ });
+ app.delete<{Params:{id:string}}>('/api/v1/admin/builder/units/:id',async(request,reply)=>{
+  if(!uuid.safeParse(request.params.id).success)return failure(reply,422,'Invalid unit');const courseId=await courseForUnit(request.params.id);
+  if(!courseId)return failure(reply,404,'Unit unavailable');if(!await guardedCourse(request,reply,courseId))return;
+  const c=await pool.connect();try{await c.query('BEGIN');await c.query('SELECT id FROM courses WHERE id=$1 FOR UPDATE',[courseId]);
+   const versions=await c.query('SELECT id,publication_state FROM learning_unit_versions WHERE unit_id=$1 FOR UPDATE',[request.params.id]);
+   const versionIds=versions.rows.map(x=>x.id);
+   if(versions.rows.some(x=>!['draft','ready_for_review'].includes(x.publication_state))||(await c.query('SELECT 1 FROM curriculum_release_units WHERE unit_id=$1 LIMIT 1',[request.params.id])).rowCount||(versionIds.length&&(await c.query('SELECT 1 FROM media_assets WHERE unit_version_id=ANY($1::uuid[]) LIMIT 1',[versionIds])).rowCount)){
+    await c.query('ROLLBACK');return failure(reply,409,'Published, pinned or uploaded units cannot be deleted');
+   }
+   await c.query('DELETE FROM exercise_definitions WHERE unit_version_id=ANY($1::uuid[])',[versionIds]);
+   await c.query('DELETE FROM learning_unit_versions WHERE unit_id=$1',[request.params.id]);
+   await c.query('DELETE FROM learning_units WHERE id=$1',[request.params.id]);await c.query('COMMIT');return {deleted:true};
+  }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
+ });
  app.post('/api/v1/admin/builder/units',async(request,reply)=>{
   const p=unitInput.safeParse(request.body);if(!p.success||p.data.kind==='exercise'&&!p.data.completionPolicy)return failure(reply,422,'Invalid learning unit');
   const cr=await pool.query('SELECT w.course_id FROM chapters c JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE c.id=$1',[p.data.chapterId]);const courseId=cr.rows[0]?.course_id;

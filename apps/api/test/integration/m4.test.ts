@@ -37,6 +37,11 @@ test('M4 builder scopes authors, edits drafts, preserves published versions and 
   const next=(await post('/api/v1/admin/builder/hierarchy/chapters',{parentId:day,title:'Chapter 2'},authorCookie)).json().id;
   assert.equal((await post(`/api/v1/admin/builder/hierarchy/chapters/${next}/move`,{direction:'up'},authorCookie)).statusCode,200);
   const order=(await get(`/api/v1/admin/builder/courses/${a}`,authorCookie)).json().chapters.map((x:{id:string})=>x.id);assert.deepEqual(order,[next,chapter]);
+  assert.equal((await req('DELETE',`/api/v1/admin/builder/hierarchy/chapters/${next}`,undefined,authorCookie)).statusCode,200);
+  assert.equal((await req('DELETE',`/api/v1/admin/builder/hierarchy/days/${day}`,undefined,authorCookie)).statusCode,409);
+  assert.equal((await req('DELETE',`/api/v1/admin/builder/hierarchy/chapters/${chapter}`,undefined,studentCookie)).statusCode,404);
+  const disposable=(await post('/api/v1/admin/builder/units',{chapterId:chapter,kind:'reflection',title:'Disposable QA draft',description:'',learningObjective:'',content:'',required:true},authorCookie)).json();
+  assert.equal((await req('DELETE',`/api/v1/admin/builder/units/${disposable.unit.id}`,undefined,authorCookie)).statusCode,200);
   const unit=(await post('/api/v1/admin/builder/units',{chapterId:chapter,kind:'exercise',title:'QA exercise',description:'Draft',learningObjective:'Observe',content:'QA fixture',required:true,completionPolicy:'submit_to_complete',prompt:'Describe an observation'},authorCookie)).json();
   const versionId=unit.version.id;
   const edit=await req('PATCH',`/api/v1/admin/builder/unit-versions/${versionId}`,{title:'QA exercise edited',description:'Draft',learningObjective:'Observe',content:'QA fixture revised',required:true,completionPolicy:'submit_to_complete',prompt:'Separate observation from interpretation'},authorCookie);assert.equal(edit.statusCode,200,edit.body);
@@ -44,6 +49,7 @@ test('M4 builder scopes authors, edits drafts, preserves published versions and 
   const selection={units:[{unitVersionId:versionId,required:true,content:'QA fixture revised',mediaAssetIds:[],conditions:[]}]};
   assert.equal((await post(`/api/v1/admin/builder/courses/${a}/preflight`,selection,authorCookie)).json().valid,true);
   const released=await post(`/api/v1/admin/courses/${a}/releases`,selection);assert.equal(released.statusCode,201,released.body);
+  assert.equal((await req('DELETE',`/api/v1/admin/builder/units/${unit.unit.id}`,undefined,authorCookie)).statusCode,409);
   assert.equal((await req('PATCH',`/api/v1/admin/builder/unit-versions/${versionId}`,{title:'Tamper',description:'',learningObjective:'',content:'tamper',required:true,completionPolicy:'submit_to_complete',prompt:''},authorCookie)).statusCode,409);
   await assert.rejects(db.pool.query('UPDATE learning_unit_versions SET content=$1 WHERE id=$2',['tamper',versionId]));
   const fork=(await post(`/api/v1/admin/builder/units/${unit.unit.id}/versions`,{},authorCookie)).json();assert.equal(fork.version,2);assert.equal(fork.content,'QA fixture revised');

@@ -32,6 +32,11 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  await page.getByRole('button',{name:'Add day'}).click();
  await page.getByRole('textbox',{name:'New chapter title'}).fill('Observation versus interpretation');
  await page.getByRole('button',{name:'Add chapter'}).click();
+ await page.getByRole('textbox',{name:'New chapter title'}).fill('QA disposable chapter');
+ await page.getByRole('button',{name:'Add chapter'}).click();
+ page.once('dialog',dialog=>dialog.accept());
+ await page.getByRole('button',{name:'Delete QA disposable chapter'}).click();
+ await expect(page.getByText('QA disposable chapter')).toBeHidden();
  await page.getByRole('textbox',{name:'New unit title'}).fill('QA practice · Observation versus interpretation');
  await page.getByRole('button',{name:'Add unit'}).click();
  await expect(page.getByRole('heading',{name:'Exercise unit'})).toBeVisible();
@@ -67,7 +72,7 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  const publishedVersion=await page.evaluate(async(id)=>{const r=await fetch(`/api/v1/admin/builder/courses/${id}`);const detail=await r.json();return detail.versions.find((v:{title:string})=>v.title==='QA draft video').id as string},courseId);
  const immutable=await page.request.patch(`/api/v1/admin/builder/unit-versions/${publishedVersion}`,{headers:{origin:'http://127.0.0.1:5173'},data:{title:'Tampered',description:'',learningObjective:'',content:'',required:true}});
  expect(immutable.status()).toBe(409);
- await page.getByRole('button',{name:/QA draft video/}).click();
+ await page.locator('button.unit').filter({hasText:'QA draft video'}).click();
  await expect(page.getByText('Published version is locked.')).toBeVisible();
  await page.getByRole('button',{name:'Students',exact:false}).click();
  await page.getByRole('combobox',{name:'Select verified student'}).selectOption({label:'QA Student B · student.b@glitch.local'});
