@@ -21,6 +21,14 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,se
  const provider=services.object;
  async function actor(request:FastifyRequest,reply:FastifyReply){const session=await auth.api.getSession({headers:fromNodeHeaders(request.headers)});if(!session){failure(reply,401,'UNAUTHENTICATED','Sign in to continue');return null;}return session.user.id;}
  async function admin(request:FastifyRequest,reply:FastifyReply){const who=await actor(request,reply);if(!who)return null;const role=await pool.query("SELECT 1 FROM user_role_assignments WHERE user_id=$1 AND role IN ('super_admin','content_admin')",[who]);if(!role.rowCount){failure(reply,403,'FORBIDDEN','Media administration permission required');return null;}return who;}
+ async function manageVersion(who:string,versionId:string){
+  const r=await pool.query("SELECT 1 FROM learning_unit_versions v JOIN learning_units u ON u.id=v.unit_id JOIN chapters c ON c.id=u.chapter_id JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE v.id=$2 AND (EXISTS(SELECT 1 FROM user_role_assignments x WHERE x.user_id=$1 AND x.role='super_admin') OR EXISTS(SELECT 1 FROM course_author_assignments a JOIN user_role_assignments x ON x.user_id=a.user_id AND x.role='content_admin' WHERE a.user_id=$1 AND a.course_id=w.course_id))",[who,versionId]);
+  return !!r.rowCount;
+ }
+ async function manageAsset(who:string,assetId:string){
+  const r=await pool.query('SELECT unit_version_id FROM media_assets WHERE id=$1 AND kind IN ($2,$3)',[assetId,'stream_video','r2_resource']);
+  return !!r.rowCount&&await manageVersion(who,r.rows[0].unit_version_id);
+ }
  async function providerCall<T>(reply:FastifyReply,action:()=>Promise<T>):Promise<T|null>{try{return await action();}catch(error){requestLog(reply,error);failure(reply,502,'MEDIA_PROVIDER_ERROR','Media provider is unavailable');return null;}}
  function requestLog(reply:FastifyReply,error:unknown){reply.log.error({err:error},'Media provider operation failed');}
 
@@ -28,6 +36,7 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,se
   const who=await admin(request,reply);if(!who)return;
   const kind=services.defaultVideoKind,video=kind?services.video(kind):null;if(!kind||!video)return unavailable(reply);
   const parsed=videoInput.safeParse(request.body);if(!parsed.success)return failure(reply,422,'INVALID_INPUT','Invalid video upload');
+  if(!await manageVersion(who,parsed.data.unitVersionId))return failure(reply,404,'NOT_FOUND','Unit version unavailable');
   const input=parsed.data;if(kind==='r2-hls'&&(!input.sizeBytes||input.maxDurationSeconds>HLS_MAX_DURATION_SECONDS))return failure(reply,422,'INVALID_INPUT','HLS requires an MP4 source up to 100 MiB and a duration limit of 1–800 seconds');const client=await pool.connect();
   try{
    await client.query('BEGIN');
@@ -53,7 +62,7 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,se
  });
 
  app.get<{Params:{id:string}}>('/api/v1/admin/media/:id',async(request,reply)=>{
-  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
+  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success||!await manageAsset(who,request.params.id))return failure(reply,404,'NOT_FOUND','Media not found');
   const r=await pool.query("SELECT id,kind,state,unit_version_id,video_provider,mime_type,size_bytes,duration_seconds,failure_reason,upload_attempt,created_at,updated_at FROM media_assets WHERE id=$1 AND kind IN ('stream_video','r2_resource')",[request.params.id]);
   if(!r.rowCount)return failure(reply,404,'NOT_FOUND','Media not found');return r.rows[0];
  });
@@ -64,7 +73,7 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,se
   await pool.query(`UPDATE media_assets SET state=CASE WHEN $1='ready' AND $2>max_duration_seconds THEN 'failed' ELSE $1 END,duration_seconds=CASE WHEN $1='ready' AND $2<=max_duration_seconds THEN $2 ELSE duration_seconds END,failure_reason=CASE WHEN $1='ready' AND $2>max_duration_seconds THEN 'Duration exceeds limit' ELSE $3 END,upload_url=NULL,updated_at=now() WHERE provider_id=$4 AND kind='stream_video' AND state NOT IN ('revoked','ready')`,[next,status.durationSeconds??null,status.error??null,uid]);
  }
  app.post<{Params:{id:string}}>('/api/v1/admin/media/:id/sync',async(request,reply)=>{
-  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
+  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success||!await manageAsset(who,request.params.id))return failure(reply,404,'NOT_FOUND','Media not found');
   const r=await pool.query("SELECT provider_id,video_provider FROM media_assets WHERE id=$1 AND kind='stream_video'",[request.params.id]);if(!r.rowCount||!r.rows[0].provider_id)return failure(reply,404,'NOT_FOUND','Media not found');const video=services.video(r.rows[0].video_provider);if(!video)return unavailable(reply);
   const status=await providerCall(reply,()=>video.streamStatus(r.rows[0].provider_id));if(!status)return;
   // The local worker owns pending/processing transitions. A status poll may only
@@ -73,7 +82,7 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,se
   const updated=await pool.query('SELECT id,state,duration_seconds,failure_reason,upload_attempt FROM media_assets WHERE id=$1',[request.params.id]);return updated.rows[0];
  });
  app.post<{Params:{id:string}}>('/api/v1/admin/media/:id/retry',async(request,reply)=>{
-  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
+  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success||!await manageAsset(who,request.params.id))return failure(reply,404,'NOT_FOUND','Media not found');
   const client=await pool.connect();try{await client.query('BEGIN');const q=await client.query("SELECT * FROM media_assets WHERE id=$1 AND kind='stream_video' FOR UPDATE",[request.params.id]);const row=q.rows[0];if(!row){await client.query('ROLLBACK');return failure(reply,404,'NOT_FOUND','Media not found');}const expired=row.state==='pending_upload'&&(!row.upload_expires_at||new Date(row.upload_expires_at).getTime()<=clock());const abandoned=row.state==='processing'&&new Date(row.updated_at).getTime()+60*60_000<=clock();
    const editable=await client.query("SELECT 1 FROM learning_unit_versions WHERE id=$1 AND publication_state IN ('draft','ready_for_review')",[row.unit_version_id]);
    if(!editable.rowCount||!(row.state==='failed'||expired||abandoned)||(await client.query('SELECT 1 FROM release_unit_media WHERE asset_id=$1',[row.id])).rowCount){await client.query('ROLLBACK');return failure(reply,409,'CONFLICT','Only failed, expired or abandoned unpublished videos can be retried');}
@@ -82,7 +91,7 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,se
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
  });
  app.post<{Params:{id:string}}>('/api/v1/admin/media/:id/revoke',async(request,reply)=>{
-  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
+  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success||!await manageAsset(who,request.params.id))return failure(reply,404,'NOT_FOUND','Media not found');
   const q=await pool.query("UPDATE media_assets SET state='revoked',upload_url=NULL,updated_at=now() WHERE id=$1 AND kind IN ('stream_video','r2_resource') RETURNING id,kind,object_key,state",[request.params.id]);const row=q.rows[0];if(!row)return failure(reply,404,'NOT_FOUND','Media not found');
   if(row.object_key&&provider){try{await provider.r2Delete(row.object_key);}catch(error){requestLog(reply,error);return failure(reply,502,'MEDIA_PROVIDER_ERROR','Resource was revoked but object deletion needs retry');}}
   return {id:row.id,state:row.state};
@@ -91,7 +100,7 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,se
  app.post('/api/v1/media/resources/uploads',async(request,reply)=>{
   const who=await actor(request,reply);if(!who)return;if(!provider)return unavailable(reply);const parsed=resourceInput.safeParse(request.body);if(!parsed.success||Boolean(parsed.data?.unitVersionId)===Boolean(parsed.data?.enrollmentId))return failure(reply,422,'INVALID_INPUT','Exactly one resource scope is required');
   const input=parsed.data;let kind:'r2_resource'|'r2_student';
-  if(input.unitVersionId){kind='r2_resource';const role=await pool.query("SELECT 1 FROM user_role_assignments WHERE user_id=$1 AND role IN ('super_admin','content_admin')",[who]);const unit=await pool.query("SELECT 1 FROM learning_unit_versions WHERE id=$1 AND publication_state IN ('draft','ready_for_review')",[input.unitVersionId]);if(!role.rowCount)return failure(reply,403,'FORBIDDEN','Media administration permission required');if(!unit.rowCount)return failure(reply,422,'INVALID_INPUT','Editable unit version required');}
+  if(input.unitVersionId){kind='r2_resource';if(!await manageVersion(who,input.unitVersionId))return failure(reply,404,'NOT_FOUND','Unit version unavailable');const unit=await pool.query("SELECT 1 FROM learning_unit_versions WHERE id=$1 AND publication_state IN ('draft','ready_for_review')",[input.unitVersionId]);if(!unit.rowCount)return failure(reply,422,'INVALID_INPUT','Editable unit version required');}
   else{kind='r2_student';const e=await pool.query("SELECT 1 FROM enrollments WHERE id=$1 AND student_id=$2 AND state='active'",[input.enrollmentId,who]);if(!e.rowCount)return failure(reply,404,'NOT_FOUND','Enrollment unavailable');}
   const key=`staging/${kind==='r2_student'?'student':'course'}/${input.enrollmentId??input.unitVersionId}/${randomUUID()}`;
   const q=await pool.query(`INSERT INTO media_assets(kind,state,unit_version_id,enrollment_id,created_by,idempotency_key,object_key,mime_type,size_bytes) VALUES($1,'pending_upload',$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(created_by,idempotency_key) DO UPDATE SET updated_at=media_assets.updated_at RETURNING *`,[kind,input.unitVersionId??null,input.enrollmentId??null,who,input.idempotencyKey,key,input.mimeType,input.sizeBytes]);const row=q.rows[0];

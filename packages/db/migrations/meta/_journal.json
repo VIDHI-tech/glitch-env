@@ -106,6 +106,13 @@
       "when": 1793700002000,
       "tag": "0014_m3-video-provider",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793700003000,
+      "tag": "0015_m4-course-authors",
+      "breakpoints": true
     }
   ]
 }
