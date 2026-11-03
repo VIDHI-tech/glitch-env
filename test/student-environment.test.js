@@ -25,6 +25,7 @@ before(async () => {
   base = `http://127.0.0.1:${server.address().port}`;
 });
 after(async () => {
+  server.closeAllConnections();
   await new Promise((r) => server.close(r));
   db.close();
   rmSync(dir, { recursive: true, force: true });
@@ -718,6 +719,7 @@ test("Server restart preserves the database and sessions", async () => {
     assert.equal(response.status, 200);
     assert.equal((await response.json()).drafts[0].answer, "Durable on disk");
   } finally {
+    other.server.closeAllConnections();
     await new Promise((r) => other.server.close(r));
     other.db.close();
   }
