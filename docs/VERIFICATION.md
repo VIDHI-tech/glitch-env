@@ -48,3 +48,14 @@ M0 baseline run: **22 tests passed, 0 failed, 0 skipped**. `npm run check` passe
 - Playwright Chromium: **3 passed, 0 failed, 0 skipped**. Four real-page screenshots and three traces are stored in `tests/e2e/artifacts/`.
 
 These local checks are backed by [GitHub CI run #1](https://github.com/VIDHI-tech/glitch-env/actions/runs/41508649589), which passed typecheck, build, API unit, PostgreSQL integration, and legacy regression steps on commit `2aa4535`. Production Resend delivery, production PostgreSQL migration, and migration of the old student environment were not exercised.
+
+## M2 local verification — 3 November 2026
+
+- TypeScript typecheck and API/web builds: passed.
+- API unit tests: **2 passed, 0 failed, 0 skipped**.
+- M1 PostgreSQL integration: **4 passed, 0 failed, 0 skipped**.
+- M2 PostgreSQL integration: **14 passed, 0 failed, 0 skipped**, including the HTTP journey and a populated `0008` → `0010` upgrade with preserved release, enrollment, progress, attempt, draft and note records. Separate assertions verify unpublished definition updates and deletes, published definition immutability, and the `0011` repair for a database that already recorded the earlier `0009`. The HTTP tests also cover finalized-release mutations, hierarchy snapshots, prerequisites, cross-student access, concurrent progression, and video resume.
+- Legacy Node/SQLite regression: **22 passed, 0 failed, 0 skipped**. Legacy syntax check passed.
+- Playwright browser regression: **3 passed, 0 failed, 0 skipped** against the old working UI and React engineering shell.
+
+The captured M2 HTTP request/response transcript is [m2-http-demo.json](qa/m2-http-demo.json); cookies are omitted. GitHub Actions must pass separately on the M2 branch. No production data or media provider was used.

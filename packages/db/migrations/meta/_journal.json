@@ -36,6 +36,55 @@
       "when": 1793646534560,
       "tag": "0004_m1-audit",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793650333360,
+      "tag": "0005_m2-learning-engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793650357355,
+      "tag": "0006_m2-portfolio-enrollment",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793650458312,
+      "tag": "0007_m2-integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793651125303,
+      "tag": "0008_m2-state-checks",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793689000000,
+      "tag": "0009_m2-publication-finalization",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793691760000,
+      "tag": "0010_m2-published-version-state",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793694030000,
+      "tag": "0011_m2-definition-trigger-repair",
+      "breakpoints": true
     }
   ]
 }
