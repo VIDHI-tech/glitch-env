@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {execFile} from 'node:child_process';
-import {mkdtemp,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {promisify} from 'node:util';
@@ -31,12 +31,13 @@ try{
  try{
   const asset=await upload(first.id,sample.bytes,10);const replacement=Buffer.alloc(sample.bytes.length,65);assert.equal((await put(asset.url,replacement)).status,412,'write-once staging PUT must reject replacement');
   const ready=await state(asset.id,'ready');assert.ok(ready.duration_seconds>=5&&ready.duration_seconds<=10,JSON.stringify(ready));
+  const initialWorkerLogs=(await compose('logs','--no-color','hls-worker')).stdout;assert.equal(initialWorkerLogs.split(`HLS encoding started ${asset.uid}`).length-1,1,'two workers must not claim the same initial encode');
   const release=await ok('POST',`/api/v1/admin/courses/${course}/releases`,{units:[{unitVersionId:first.id,mediaAssetIds:[asset.id]}]},root.cookie,201);const releaseUnit=release.unitIds[0] as string;
   const enrollment=(await ok('POST','/api/v1/admin/enrollments',{studentId:student.id,courseId:course},root.cookie,201)).id as string;
   await ok('POST','/api/v1/admin/enrollments',{studentId:other.id,courseId:course},root.cookie,201);
   const session=await ok('POST',`/api/v1/release-units/${releaseUnit}/video-sessions`,{},student.cookie,201);assert.equal(session.adapter,'r2-hls');
   const playback=await ok('POST',`/api/v1/video-sessions/${session.id}/playback`,{},student.cookie);const manifest=await api('GET',playback.url,undefined,student.cookie);assert.equal(manifest.status,200);assert.match(manifest.data,/^#EXTM3U/);const segment=manifest.data.match(/segment_\d{5}\.ts/)?.[0];assert.ok(segment);const segmentUrl=playback.url.replace('index.m3u8',segment);
-  const segmentResponse=await fetch(`${origin}${segmentUrl}`,{headers:{Cookie:student.cookie}});assert.equal(segmentResponse.status,200);assert.ok((await segmentResponse.arrayBuffer()).byteLength>1000);
+  const segmentResponse=await fetch(`${origin}${segmentUrl}`,{headers:{Cookie:student.cookie}});assert.equal(segmentResponse.status,200);const segmentBytes=Buffer.from(await segmentResponse.arrayBuffer());assert.ok(segmentBytes.length>1000);const segmentFile=join(sample.directory,'real-segment.ts');await writeFile(segmentFile,segmentBytes);const probe=(await run('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=codec_name','-of','default=noprint_wrappers=1',segmentFile])).stdout;assert.match(probe,/codec_name=h264/);
   assert.equal((await api('GET',segmentUrl,undefined,other.cookie)).status,404);
   const latencies:number[]=[];for(let i=0;i<10;i++){const start=performance.now();const r=await api('GET',segmentUrl,undefined,student.cookie);assert.equal(r.status,200);latencies.push(performance.now()-start);}const concurrentStart=performance.now();const concurrent=await Promise.all(Array.from({length:10},()=>api('GET',segmentUrl,undefined,student.cookie)));assert.ok(concurrent.every(r=>r.status===200));console.log('HLS segment latency ms',JSON.stringify({sequential:latencies,concurrent10:performance.now()-concurrentStart}));
   for(let pos=1;pos<=ready.duration_seconds;pos++){await sleep(1100);const result=await api('POST',`/api/v1/video-sessions/${session.id}/events`,{positionSeconds:pos,type:pos===ready.duration_seconds?'end':'heartbeat'},student.cookie);assert.equal(result.status,200,JSON.stringify(result.data));if(pos===ready.duration_seconds)assert.equal(result.data.completed,true);}
@@ -61,7 +62,7 @@ try{
    assert.equal((await pool.query('SELECT state FROM media_assets WHERE id=$1',[interrupted.id])).rows[0].state,'processing');
    await pool.query("UPDATE media_assets SET updated_at=now()-interval '16 minutes' WHERE id=$1",[interrupted.id]);
    await compose('up','-d','--no-deps','--scale','hls-worker=2','hls-worker');
-   const recovered=await state(interrupted.id,'ready');assert.ok(recovered.duration_seconds>=20&&recovered.duration_seconds<=30);
+   const recovered=await state(interrupted.id,'ready');assert.ok(recovered.duration_seconds>=20&&recovered.duration_seconds<=30);const restartLogs=(await compose('logs','--no-color','hls-worker')).stdout;assert.ok(restartLogs.split(`HLS encoding started ${interrupted.uid}`).length-1>=2,'interrupted encode must restart');
    console.log('WORKER_RESTART_PASS',JSON.stringify({asset:interrupted.id,durationSeconds:recovered.duration_seconds}));
   }finally{await rm(long.directory,{recursive:true,force:true});}
   console.log('REAL_MP4_HLS_PASS',JSON.stringify({asset:asset.id,durationSeconds:ready.duration_seconds,segment,failedRetry:failed.id}));
