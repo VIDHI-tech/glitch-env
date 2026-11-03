@@ -26,7 +26,7 @@ let root:{id:string;cookie:string};
 try{
  await until('API health',async()=>{const r=await fetch(`${origin}/health/ready`);return r.ok?true:false;});
  const suffix=randomUUID(),admin=await account(`media-admin-${suffix}@example.test`),student=await account(`media-a-${suffix}@example.test`),other=await account(`media-b-${suffix}@example.test`);root=admin;await bootstrapFirstSuperAdmin(pool,`media-admin-${suffix}@example.test`);
- const course=(await ok('POST','/api/v1/admin/courses',{title:'Real HLS container verification'},root.cookie,201)).id as string;
+ const course=(await ok('POST','/api/v1/admin/courses',{title:'Real HLS container verification'},root.cookie)).id as string;
  const first=await version(course,'Real MP4');const sample=await fixture(5);
  try{
   const asset=await upload(first.id,sample.bytes,10);const replacement=Buffer.alloc(sample.bytes.length,65);assert.equal((await put(asset.url,replacement)).status,412,'write-once staging PUT must reject replacement');
