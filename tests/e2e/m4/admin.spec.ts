@@ -7,7 +7,7 @@ const screenshots=resolve('docs/qa');
 const password='GlitchQaOnly2026!';
 test('complete M4 admin workflow through the real interface',async({page},testInfo)=>{
  mkdirSync(screenshots,{recursive:true});
- const failures:string[]=[];page.on('pageerror',e=>failures.push(e.message));page.on('response',r=>{if(r.status()>=500)failures.push(`${r.status()} ${r.url()}`)});
+ const failures:string[]=[];page.on('pageerror',e=>failures.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('404 (Not Found)'))failures.push(m.text())});page.on('requestfailed',r=>{if(r.failure()?.errorText!=='net::ERR_ABORTED')failures.push(`${r.failure()?.errorText} ${r.url()}`)});page.on('response',r=>{if(r.status()>=500)failures.push(`${r.status()} ${r.url()}`)});
  await page.goto('/');
  await expect(page.getByRole('heading',{name:'Sign in to GLITCH'})).toBeVisible();
  await page.getByRole('textbox',{name:'Email'}).fill('admin@glitch.local');
@@ -64,6 +64,9 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  await page.screenshot({path:resolve(screenshots,'m4-preview.png'),fullPage:true});
  await page.getByRole('button',{name:'Publish immutable release ↗'}).click();
  await expect(page.getByText('Immutable release published.')).toBeVisible();
+ const publishedVersion=await page.evaluate(async(id)=>{const r=await fetch(`/api/v1/admin/builder/courses/${id}`);const detail=await r.json();return detail.versions.find((v:{title:string})=>v.title==='QA draft video').id as string},courseId);
+ const immutable=await page.request.patch(`/api/v1/admin/builder/unit-versions/${publishedVersion}`,{headers:{origin:'http://127.0.0.1:5173'},data:{title:'Tampered',description:'',learningObjective:'',content:'',required:true}});
+ expect(immutable.status()).toBe(409);
  await page.getByRole('button',{name:/QA draft video/}).click();
  await expect(page.getByText('Published version is locked.')).toBeVisible();
  await page.getByRole('button',{name:'Students',exact:false}).click();
