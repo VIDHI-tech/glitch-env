@@ -8,12 +8,15 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --import tsx --test test/app.test.ts",
+    "test": "node --import tsx --test test/app.test.ts test/media-provider.test.ts",
     "test:integration": "node -e \"if (!process.env.TEST_DATABASE_URL) { console.error('TEST_DATABASE_URL is required'); process.exit(1) }\" && node --import tsx --test test/integration/m1.test.ts",
     "test:m2:integration": "node -e \"if (!process.env.TEST_DATABASE_URL) { console.error('TEST_DATABASE_URL is required'); process.exit(1) }\" && node --import tsx --test test/integration/m2.test.ts test/integration/m2-upgrade.test.ts",
+    "test:m3:integration": "node -e \"if (!process.env.TEST_DATABASE_URL) { console.error('TEST_DATABASE_URL is required'); process.exit(1) }\" && node --import tsx --test test/integration/m3.test.ts",
     "bootstrap:super-admin": "tsx scripts/bootstrap.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
+    "@aws-sdk/s3-request-presigner": "^3.1161.0",
     "@glitch/db": "workspace:*",
     "@glitch/shared": "workspace:*",
     "better-auth": "1.7.15",

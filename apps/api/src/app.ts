@@ -6,7 +6,9 @@ import { createAuth } from './auth.js';
 import { developmentMailer, productionMailer, type Mailer } from './mail.js';
 import { registerWorkspaceRoutes } from './workspace.js';
 import { registerLearningRoutes } from './learning.js';
-export function buildApp(options:{databaseUrl?:string;secret?:string;origin?:string;mailer?:Mailer;clock?:()=>number}={}) {
+import {registerMediaRoutes} from './media.js';
+import {configuredMediaProvider,type MediaProvider} from './media-provider.js';
+export function buildApp(options:{databaseUrl?:string;secret?:string;origin?:string;mailer?:Mailer;clock?:()=>number;mediaProvider?:MediaProvider;webhookSecret?:string}={}) {
   const app = Fastify({logger:{redact:['req.url','req.headers.authorization','req.headers.cookie','req.body.password','res.headers.set-cookie']}});
   const databaseUrl=options.databaseUrl||process.env.DATABASE_URL;
   const origin=options.origin||process.env.APP_ORIGIN;
@@ -42,7 +44,7 @@ export function buildApp(options:{databaseUrl?:string;secret?:string;origin?:str
     if(!session)return reply.code(401).send({code:'UNAUTHENTICATED',message:'Sign in to continue'});
     return {id:session.user.id,name:session.user.name,email:session.user.email};
   });
-  if(database&&auth){registerWorkspaceRoutes(app,database,auth);registerLearningRoutes(app,database,auth,options.clock);}
+  if(database&&auth){const mediaProvider=options.mediaProvider??configuredMediaProvider();registerWorkspaceRoutes(app,database,auth);registerLearningRoutes(app,database,auth,options.clock,mediaProvider);registerMediaRoutes(app,database,auth,mediaProvider,options.webhookSecret??process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET,options.clock);}
   app.addHook('onClose',async()=>{await database?.pool.end();});
   return app;
 }
