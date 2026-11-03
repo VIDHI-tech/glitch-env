@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac,createVerify,generateKeyPairSync} from 'node:crypto';
 import {CloudflareMediaProvider,verifyStreamWebhook,matchesMagic} from '../src/media-provider.js';
+import {R2HlsProvider} from '../src/hls-provider.js';
 
 test('Stream webhook HMAC binds timestamp and raw bytes',()=>{
  const now=Date.now(),body=Buffer.from('{"uid":"video-1"}'),time=Math.floor(now/1000),secret='test-secret';
@@ -10,6 +11,21 @@ test('Stream webhook HMAC binds timestamp and raw bytes',()=>{
  assert.equal(verifyStreamWebhook(Buffer.from('{"uid":"video-2"}'),`time=${time},sig1=${sig}`,secret,now),false);
  assert.equal(verifyStreamWebhook(body,`time=${time},sig1=${sig}`,secret,now+300001),false);
  assert.equal(verifyStreamWebhook(body,`time=${time},sig1=${'0'.repeat(64)}`,secret,now),false);
+});
+
+test('R2/HLS source upload is scoped, write-once, and short-lived',async()=>{
+ const values:Record<string,string>={CLOUDFLARE_R2_BUCKET:'private-test',CLOUDFLARE_R2_ACCESS_KEY_ID:'test-access',CLOUDFLARE_R2_SECRET_ACCESS_KEY:'test-secret',R2_ENDPOINT:'http://127.0.0.1:9000',R2_PUBLIC_ENDPOINT:'http://127.0.0.1:9000'};
+ const previous=Object.fromEntries(Object.keys(values).map(key=>[key,process.env[key]]));
+ try{
+  Object.assign(process.env,values);const provider=new R2HlsProvider();const expiry=new Date(Date.now()+120000);
+  const upload=await provider.createStreamUpload({assetId:'asset-1',maxDurationSeconds:60,expiresAt:expiry,sizeBytes:1024});
+  const url=new URL(upload.uploadUrl);assert.match(upload.uid,/^hls:[0-9a-f-]{36}$/);assert.match(url.pathname,/^\/private-test\/hls\/source\/[0-9a-f-]{36}\.mp4$/);
+  assert.ok([119,120].includes(Number(url.searchParams.get('X-Amz-Expires'))));
+  const headers=url.searchParams.get('X-Amz-SignedHeaders')??'';
+  for(const header of ['content-length','content-type','if-none-match'])assert.ok(headers.includes(header));
+  assert.equal((await provider.streamPlayback(upload.uid,expiry,'session-1')).url,'/api/v1/video-sessions/session-1/hls/index.m3u8');
+  assert.equal(await provider.hlsRead(upload.uid,'../../private'),null);
+ }finally{for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
 });
 
 test('R2 upload bytes match the allowed declared type',()=>{

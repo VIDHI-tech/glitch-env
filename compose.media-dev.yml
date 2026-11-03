@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: glitch
+      POSTGRES_PASSWORD: local_dev_only
+      POSTGRES_DB: glitch
+    volumes:
+      - glitch_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitch -d glitch"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: glitch_dev
+      MINIO_ROOT_PASSWORD: local_dev_only_change_me
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - glitch_media:/data
+  media-init:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: ["/bin/sh", "-c"]
+    command: "until mc alias set local http://minio:9000 glitch_dev local_dev_only_change_me; do sleep 2; done; mc mb --ignore-existing local/glitch-private; mc anonymous set none local/glitch-private"
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.media-dev
+    command: ["/bin/sh", "-c", "pnpm --filter @glitch/api exec tsx src/migrate.ts && pnpm --filter @glitch/api exec tsx src/server.ts"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      media-init: {condition: service_completed_successfully}
+    environment: &api_env
+      DATABASE_URL: postgresql://glitch:local_dev_only@postgres:5432/glitch
+      BETTER_AUTH_SECRET: local_dev_only_secret_at_least_32_characters
+      APP_ORIGIN: http://127.0.0.1:3002
+      HOST: 0.0.0.0
+      PORT: 3002
+      MAIL_CAPTURE: "1"
+      MAIL_CAPTURE_DOCKER: "1"
+      VIDEO_PROVIDER: r2-hls
+      CLOUDFLARE_R2_BUCKET: glitch-private
+      CLOUDFLARE_R2_ACCESS_KEY_ID: glitch_dev
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: local_dev_only_change_me
+      R2_ENDPOINT: http://minio:9000
+      R2_PUBLIC_ENDPOINT: http://localhost:9000
+    ports:
+      - "127.0.0.1:3002:3002"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  hls-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.media-dev
+    command: ["pnpm", "--filter", "@glitch/api", "exec", "tsx", "src/hls-worker.ts"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      media-init: {condition: service_completed_successfully}
+      api: {condition: service_healthy}
+    environment: *api_env
+volumes:
+  glitch_pg:
+  glitch_media:

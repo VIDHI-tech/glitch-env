@@ -1,0 +1,7 @@
+FROM node:24-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN corepack enable
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile && pnpm m1:build
+CMD ["node","apps/api/dist/server.js"]

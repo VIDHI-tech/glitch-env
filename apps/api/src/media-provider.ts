@@ -3,10 +3,14 @@ import {S3Client,PutObjectCommand,GetObjectCommand,HeadObjectCommand,DeleteObjec
 import {getSignedUrl} from '@aws-sdk/s3-request-presigner';
 
 export type StreamStatus={uid:string;state:'pending_upload'|'processing'|'ready'|'failed';readyToStream:boolean;durationSeconds?:number;error?:string};
-export interface MediaProvider{
- createStreamUpload(input:{maxDurationSeconds:number;assetId:string;expiresAt:Date}):Promise<{uid:string;uploadUrl:string}>;
+export interface VideoMediaProvider{
+ videoKind?:'cloudflare-stream'|'r2-hls';
+ createStreamUpload(input:{maxDurationSeconds:number;assetId:string;expiresAt:Date;sizeBytes?:number}):Promise<{uid:string;uploadUrl:string}>;
  streamStatus(uid:string):Promise<StreamStatus>;
- streamPlayback(uid:string,expiresAt:Date):Promise<{url:string;expiresAt:string}>;
+ streamPlayback(uid:string,expiresAt:Date,sessionId?:string):Promise<{url:string;expiresAt:string}>;
+ hlsRead?(uid:string,file:string):Promise<{bytes:Uint8Array;mimeType:string}|null>;
+}
+export interface ObjectMediaProvider{
  r2Upload(key:string,mimeType:string,sizeBytes:number,expiresSeconds:number):Promise<string>;
  r2Download(key:string,expiresSeconds:number):Promise<string>;
  r2Head(key:string):Promise<{sizeBytes:number;mimeType:string}|null>;
@@ -14,6 +18,7 @@ export interface MediaProvider{
  r2Promote(tempKey:string,finalKey:string):Promise<void>;
  r2Delete(key:string):Promise<void>;
 }
+export interface MediaProvider extends VideoMediaProvider,ObjectMediaProvider{}
 
 export function verifyStreamWebhook(body:Buffer,header:string|undefined,secret:string,now=Date.now()):boolean{
  if(!header||!secret)return false;
@@ -32,6 +37,7 @@ function normalizeStreamStatus(result:Record<string,any>):StreamStatus{
 }
 
 export class CloudflareMediaProvider implements MediaProvider{
+ readonly videoKind='cloudflare-stream' as const;
  private readonly accountId:string;private readonly token:string;private readonly customerCode:string;private readonly keyId:string;private readonly privateKey:string;private readonly bucket:string;private readonly r2:S3Client;
  constructor(){
   this.accountId=env('CLOUDFLARE_ACCOUNT_ID');this.token=env('CLOUDFLARE_STREAM_API_TOKEN');this.customerCode=env('CLOUDFLARE_STREAM_CUSTOMER_CODE');this.keyId=env('CLOUDFLARE_STREAM_SIGNING_KEY_ID');this.privateKey=Buffer.from(env('CLOUDFLARE_STREAM_SIGNING_KEY_PEM_BASE64'),'base64').toString('utf8');this.bucket=env('CLOUDFLARE_R2_BUCKET');
@@ -45,7 +51,7 @@ export class CloudflareMediaProvider implements MediaProvider{
   if(!payload.success||!payload.result)throw new Error('Stream API rejected request');
   return payload.result;
  }
- async createStreamUpload(input:{maxDurationSeconds:number;assetId:string;expiresAt:Date}){
+ async createStreamUpload(input:{maxDurationSeconds:number;assetId:string;expiresAt:Date;sizeBytes?:number}){
   const result=await this.stream('/direct_upload','POST',{maxDurationSeconds:input.maxDurationSeconds,requireSignedURLs:true,expiry:input.expiresAt.toISOString(),meta:{glitchAssetId:input.assetId}});
   if(typeof result.uid!=='string'||typeof result.uploadURL!=='string')throw new Error('Stream upload response incomplete');
   return {uid:result.uid,uploadUrl:result.uploadURL};
