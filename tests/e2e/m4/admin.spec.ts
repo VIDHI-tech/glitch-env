@@ -25,6 +25,9 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  const courseId=await page.evaluate(async(title)=>{const r=await fetch('/api/v1/admin/builder/courses');const all=await r.json();return all.find((x:{title:string})=>x.title===title).id as string},courseTitle);
  await page.getByRole('textbox',{name:'New week title'}).fill('Week 1 · Discovery & sense-making');
  await page.getByRole('button',{name:'Add week'}).click();
+ await page.getByRole('button',{name:'Collapse Week 1 · Discovery & sense-making'}).click();
+ await expect(page.getByRole('textbox',{name:'New day title'})).toBeHidden();
+ await page.getByRole('button',{name:'Expand Week 1 · Discovery & sense-making'}).click();
  await page.getByRole('textbox',{name:'New day title'}).fill('See First. Explain Later.');
  await page.getByRole('button',{name:'Add day'}).click();
  await page.getByRole('textbox',{name:'New chapter title'}).fill('Observation versus interpretation');
