@@ -1,10 +1,10 @@
 # GLITCH — Personal Student Environment
 
-A working local application implements the mandatory personal student workspace with Node.js 24, SQLite and native browser JavaScript. A separate TypeScript and PostgreSQL backend now implements the M2 curriculum release, enrollment and personal progression engine. The React app remains an engineering shell. The SQLite application remains the working student UI.
+A working local application implements the mandatory personal student workspace with Node.js 24, SQLite and native browser JavaScript. A separate TypeScript and PostgreSQL backend implements the M2 curriculum release, enrollment and personal progression engine; M3 adds private Cloudflare Stream and R2 media infrastructure. The React app remains an engineering shell. The SQLite application remains the working student UI.
 
 ## Repository status
 
-Source is tracked in [VIDHI-tech/glitch-env](https://github.com/VIDHI-tech/glitch-env). M0 and M1 are merged into `main`. M2 development is on `feat/m2-learning-engine`; it preserves the legacy application directories.
+Source is tracked in [VIDHI-tech/glitch-env](https://github.com/VIDHI-tech/glitch-env). M0, M1 and M2 are merged into `main`. M3 development is on `feat/m3-media-infrastructure`; it preserves the legacy application directories. See [M3 architecture](docs/architecture/M3-MEDIA.md) and [M3 API](docs/api/m3-api.md) for setup, endpoints, security limits and rollout. The free-first PostgreSQL/API/MinIO/FFmpeg pilot runs with `docker compose -f compose.media-dev.yml up --build` and keeps Cloudflare Stream as the managed option.
 
 ## Run locally
 

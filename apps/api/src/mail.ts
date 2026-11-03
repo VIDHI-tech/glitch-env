@@ -14,7 +14,7 @@ export function productionMailer(env=process.env):Mailer {
 }
 export function developmentMailer(env=process.env):CaptureMailer {
   if(env.NODE_ENV==='production')throw new Error('Development mail capture is unavailable in production');
-  if(env.HOST&&env.HOST!=='127.0.0.1'&&env.HOST!=='localhost'&&env.HOST!=='::1')throw new Error('Development mail capture requires loopback HOST');
+  if(env.HOST&&env.HOST!=='127.0.0.1'&&env.HOST!=='localhost'&&env.HOST!=='::1'&&!(env.HOST==='0.0.0.0'&&env.MAIL_CAPTURE_DOCKER==='1'))throw new Error('Development mail capture requires loopback HOST');
   if(!env.APP_ORIGIN||!['127.0.0.1','localhost','[::1]'].includes(new URL(env.APP_ORIGIN).hostname))throw new Error('Development mail capture requires a loopback APP_ORIGIN');
   return new CaptureMailer();
 }

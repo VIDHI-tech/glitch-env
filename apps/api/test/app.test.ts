@@ -16,6 +16,8 @@ test('development mail capture is loopback only and production email fails close
  assert.throws(()=>developmentMailer({NODE_ENV:'production',APP_ORIGIN:'http://127.0.0.1:3002'}));
  assert.throws(()=>developmentMailer({NODE_ENV:'development',APP_ORIGIN:'https://example.com'}));
  assert.throws(()=>developmentMailer({NODE_ENV:'development',APP_ORIGIN:'http://127.0.0.1:3002',HOST:'0.0.0.0'}));
+ assert.doesNotThrow(()=>developmentMailer({NODE_ENV:'development',APP_ORIGIN:'http://127.0.0.1:3002',HOST:'0.0.0.0',MAIL_CAPTURE_DOCKER:'1'}));
+ assert.throws(()=>developmentMailer({NODE_ENV:'production',APP_ORIGIN:'http://127.0.0.1:3002',HOST:'0.0.0.0',MAIL_CAPTURE_DOCKER:'1'}));
  assert.throws(()=>productionMailer({}));
  const capture=developmentMailer({NODE_ENV:'development',APP_ORIGIN:'http://127.0.0.1:3002',HOST:'127.0.0.1'});
  await capture.send({to:'student@example.test',subject:'Verify',text:'Local link'});

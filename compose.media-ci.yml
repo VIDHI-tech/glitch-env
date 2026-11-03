@@ -1,0 +1,6 @@
+services:
+  hls-worker:
+    environment:
+      NODE_ENV: test
+      HLS_ORPHAN_GRACE_MS: "0"
+      HLS_CLEANUP_INTERVAL_MS: "5000"

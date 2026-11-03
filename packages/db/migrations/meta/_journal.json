@@ -85,6 +85,27 @@
       "when": 1793694030000,
       "tag": "0011_m2-definition-trigger-repair",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793700000000,
+      "tag": "0012_m3-media",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793700001000,
+      "tag": "0013_m3-upload-expiry",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793700002000,
+      "tag": "0014_m3-video-provider",
+      "breakpoints": true
     }
   ]
 }
