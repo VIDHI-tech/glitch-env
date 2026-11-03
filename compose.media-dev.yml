@@ -15,7 +15,7 @@ services:
       timeout: 3s
       retries: 10
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-06T17-38-46Z
     command: server /data --console-address :9001
     environment:
       MINIO_ROOT_USER: glitch_dev
@@ -26,10 +26,16 @@ services:
     volumes:
       - glitch_media:/data
   media-init:
-    image: minio/mc:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.media-dev
     depends_on: [minio]
-    entrypoint: ["/bin/sh", "-c"]
-    command: "until mc alias set local http://minio:9000 glitch_dev local_dev_only_change_me; do sleep 2; done; mc mb --ignore-existing local/glitch-private; mc anonymous set none local/glitch-private"
+    command: ["pnpm", "--filter", "@glitch/api", "exec", "tsx", "src/bucket-init.ts"]
+    environment:
+      CLOUDFLARE_R2_BUCKET: glitch-private
+      CLOUDFLARE_R2_ACCESS_KEY_ID: glitch_dev
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: local_dev_only_change_me
+      R2_ENDPOINT: http://minio:9000
   api:
     build:
       context: .
