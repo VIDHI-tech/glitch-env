@@ -8,6 +8,7 @@ import {CaptureMailer} from '../../src/mail.js';
 import {bootstrapFirstSuperAdmin} from '../../src/bootstrap.js';
 import {createDatabase,migrateDatabase} from '@glitch/db';
 import type {MediaProvider,StreamStatus} from '../../src/media-provider.js';
+import type {VideoKind} from '../../src/media-services.js';
 
 if(!process.env.TEST_DATABASE_URL)throw new Error('TEST_DATABASE_URL is required');
 const base=new URL(process.env.TEST_DATABASE_URL),name=`glitch_m3_it_${process.pid}_${Math.floor(Math.random()*100000)}`;
@@ -28,12 +29,17 @@ const provider:MediaProvider={
  async r2Promote(tempKey,finalKey){const item=objects.get(tempKey);if(!item)throw new Error('Source missing');objects.set(finalKey,item);},
  async r2Delete(key){objects.delete(key);}
 };
+const hlsProvider:MediaProvider={...provider,videoKind:'r2-hls',
+ async streamPlayback(_uid,expiresAt,sessionId){return {url:`/api/v1/video-sessions/${sessionId}/hls/index.m3u8`,expiresAt:expiresAt.toISOString()};},
+ async hlsRead(_uid,file){return {bytes:Buffer.from(file==='index.m3u8'?'#EXTM3U\n#EXTINF:4,\nsegment_00000.ts':'segment data'),mimeType:file==='index.m3u8'?'application/vnd.apple.mpegurl':'video/mp2t'};}
+};
+let defaultVideoKind:VideoKind='cloudflare-stream',disabledVideoKind:VideoKind|null=null;
 async function req(method:string,url:string,payload?:object,cookie?:string,extra:Record<string,string>={}){return app.inject({method,url,headers:{host:'127.0.0.1:3002',...(method!=='GET'?{origin}:{}),...(cookie?{cookie}:{}),...extra},...(payload?{payload}:{})});}
 const post=(url:string,payload:object,cookie?:string)=>req('POST',url,payload,cookie),get=(url:string,cookie?:string)=>req('GET',url,undefined,cookie);
 async function signup(email:string){const r=await post('/api/auth/sign-up/email',{name:email,email,password:'m3-password-12345'});assert.equal(r.statusCode,200,r.body);const m=mailer.messages.findLast(x=>x.to===email&&x.subject.startsWith('Verify'));assert.ok(m);const u=new URL(m.text.split(' ').at(-1));assert.ok([200,302].includes((await get(u.pathname+u.search)).statusCode));return r.json().user.id as string;}
 async function login(email:string){const r=await post('/api/auth/sign-in/email',{email,password:'m3-password-12345'});assert.equal(r.statusCode,200,r.body);return String(r.headers['set-cookie']).split(';')[0];}
 function webhook(event:object,at=now,signature='valid'){const body=JSON.stringify(event),time=Math.floor(at/1000),sig=createHmac('sha256',secret).update(`${time}.${body}`).digest('hex');return app.inject({method:'POST',url:'/webhooks/cloudflare/stream',headers:{'content-type':'application/json','webhook-signature':`time=${time},sig1=${signature==='valid'?sig:'0'.repeat(64)}`},payload:body});}
-before(async()=>{admin=new Pool({connectionString:adminUrl.toString()});await admin.query(`CREATE DATABASE ${name}`);db=createDatabase(dbUrl.toString());await migrateDatabase(db,resolve(process.cwd(),'../../packages/db/migrations'));app=buildApp({databaseUrl:dbUrl.toString(),origin,secret:'m3-test-only-better-auth-secret-minimum-32-characters',mailer,clock:()=>now,mediaProvider:provider,webhookSecret:secret});});
+before(async()=>{admin=new Pool({connectionString:adminUrl.toString()});await admin.query(`CREATE DATABASE ${name}`);db=createDatabase(dbUrl.toString());await migrateDatabase(db,resolve(process.cwd(),'../../packages/db/migrations'));app=buildApp({databaseUrl:dbUrl.toString(),origin,secret:'m3-test-only-better-auth-secret-minimum-32-characters',mailer,clock:()=>now,mediaServices:{get defaultVideoKind(){return defaultVideoKind;},object:provider,hasVideo:true,video:kind=>kind===disabledVideoKind?null:kind==='r2-hls'?hlsProvider:provider,failure:()=>undefined},webhookSecret:secret});});
 after(async()=>{await app?.close();await db?.pool.end();if(admin){await admin.query(`DROP DATABASE IF EXISTS ${name}`);await admin.end();}});
 
 test('M3 private media lifecycle and M2 progression',async t=>{
@@ -97,6 +103,7 @@ test('M3 private media lifecycle and M2 progression',async t=>{
   const published=await post(`/api/v1/admin/courses/${course}/releases`,{units:[{unitVersionId:version,mediaAssetIds:[videoId,resourceId]},{unitVersionId:otherVersion}]},rootCookie);assert.equal(published.statusCode,201,published.body);releaseId=published.json().id;[unitId,otherId]=published.json().unitIds;
   const duration=(await db.pool.query('SELECT duration_seconds FROM curriculum_release_units WHERE id=$1',[unitId])).rows[0].duration_seconds;assert.equal(duration,10);
   await assert.rejects(db.pool.query('UPDATE media_assets SET provider_id=$1 WHERE id=$2',['tampered',videoId]));
+  await assert.rejects(db.pool.query("UPDATE media_assets SET video_provider='r2-hls' WHERE id=$1",[videoId]));
   await assert.rejects(db.pool.query("UPDATE media_assets SET state='processing' WHERE id=$1",[videoId]));
   await assert.rejects(db.pool.query('DELETE FROM release_unit_media WHERE release_unit_id=$1 AND asset_id=$2',[unitId,videoId]));
   await assert.rejects(db.pool.query('INSERT INTO release_unit_media(release_unit_id,asset_id) VALUES($1,$2)',[otherId,resourceId]));
@@ -136,14 +143,17 @@ test('M3 private media lifecycle and M2 progression',async t=>{
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json().completedRequired,1);
  });
  await t.test('R2/HLS manifest and segments require an active owned session and fresh grant',async()=>{
-  provider.videoKind='r2-hls';provider.streamPlayback=async(_uid,expiresAt,sessionId)=>({url:`/api/v1/video-sessions/${sessionId}/hls/index.m3u8`,expiresAt:expiresAt.toISOString()});
-  provider.hlsRead=async(_uid,file)=>({bytes:Buffer.from(file==='index.m3u8'?'#EXTM3U\n#EXTINF:4,\nsegment_00000.ts':'segment data'),mimeType:file==='index.m3u8'?'application/vnd.apple.mpegurl':'video/mp2t'});
+  defaultVideoKind='r2-hls';
   const nextCourse=(await post('/api/v1/admin/courses',{title:'HLS pilot'},rootCookie)).json().id;
   const w=(await db.pool.query('INSERT INTO weeks(course_id,position,title) VALUES($1,1,$2) RETURNING id',[nextCourse,'Week'])).rows[0].id;
   const d=(await db.pool.query('INSERT INTO days(week_id,position,title) VALUES($1,1,$2) RETURNING id',[w,'Day'])).rows[0].id;
   const ch=(await db.pool.query('INSERT INTO chapters(day_id,position,title) VALUES($1,1,$2) RETURNING id',[d,'Chapter'])).rows[0].id;
   const u=(await db.pool.query("INSERT INTO learning_units(chapter_id,position,kind) VALUES($1,1,'video') RETURNING id",[ch])).rows[0].id;
   const v=(await db.pool.query("INSERT INTO learning_unit_versions(unit_id,version,title,publication_state) VALUES($1,1,'HLS video','ready_for_review') RETURNING id",[u])).rows[0].id;
+  for(const maxDurationSeconds of [1,800])assert.equal((await post('/api/v1/admin/media/videos/uploads',{unitVersionId:v,idempotencyKey:randomUUID(),maxDurationSeconds,sizeBytes:1000},rootCookie)).statusCode,201);
+  for(const maxDurationSeconds of [0,801]){const invalid=await post('/api/v1/admin/media/videos/uploads',{unitVersionId:v,idempotencyKey:randomUUID(),maxDurationSeconds,sizeBytes:1000},rootCookie);assert.equal(invalid.statusCode,422);assert.equal(invalid.json().code,'INVALID_INPUT');}
+  for(const sizeBytes of [0,100*1024*1024+1]){const invalid=await post('/api/v1/admin/media/videos/uploads',{unitVersionId:v,idempotencyKey:randomUUID(),maxDurationSeconds:10,sizeBytes},rootCookie);assert.equal(invalid.statusCode,422);assert.equal(invalid.json().code,'INVALID_INPUT');}
+  assert.equal((await post('/api/v1/admin/media/videos/uploads',{unitVersionId:v,idempotencyKey:randomUUID(),maxDurationSeconds:10},rootCookie)).statusCode,422);
   const upload=await post('/api/v1/admin/media/videos/uploads',{unitVersionId:v,idempotencyKey:randomUUID(),maxDurationSeconds:10,sizeBytes:1000},rootCookie);assert.equal(upload.statusCode,201,upload.body);
   const asset=upload.json().id;assert.equal((await post(`/api/v1/admin/media/${asset}/sync`,{},rootCookie)).json().state,'ready');
   const release=await post(`/api/v1/admin/courses/${nextCourse}/releases`,{units:[{unitVersionId:v,mediaAssetIds:[asset]}]},rootCookie);assert.equal(release.statusCode,201,release.body);const hlsUnit=release.json().unitIds[0];
@@ -160,8 +170,29 @@ test('M3 private media lifecycle and M2 progression',async t=>{
   const bSession=(await post(`/api/v1/release-units/${hlsUnit}/video-sessions`,{},bCookie)).json();
   const bPlayback=(await post(`/api/v1/video-sessions/${bSession.id}/playback`,{},bCookie)).json();
   assert.equal((await get(bPlayback.url,bCookie)).statusCode,200);
+  const streamCourse=(await post('/api/v1/admin/courses',{title:'Pinned Stream after HLS switch'},rootCookie)).json().id;
+  const sw=(await db.pool.query('INSERT INTO weeks(course_id,position,title) VALUES($1,1,$2) RETURNING id',[streamCourse,'Week'])).rows[0].id;
+  const sd=(await db.pool.query('INSERT INTO days(week_id,position,title) VALUES($1,1,$2) RETURNING id',[sw,'Day'])).rows[0].id;
+  const sc=(await db.pool.query('INSERT INTO chapters(day_id,position,title) VALUES($1,1,$2) RETURNING id',[sd,'Chapter'])).rows[0].id;
+  const su=(await db.pool.query("INSERT INTO learning_units(chapter_id,position,kind) VALUES($1,1,'video') RETURNING id",[sc])).rows[0].id;
+  const sv=(await db.pool.query("INSERT INTO learning_unit_versions(unit_id,version,title,publication_state) VALUES($1,1,'Stream video','ready_for_review') RETURNING id",[su])).rows[0].id;
+  defaultVideoKind='cloudflare-stream';const streamUpload=await post('/api/v1/admin/media/videos/uploads',{unitVersionId:sv,idempotencyKey:randomUUID(),maxDurationSeconds:10},rootCookie);assert.equal(streamUpload.statusCode,201,streamUpload.body);const streamUid=`video-${uploads}`;
+  await webhook({uid:streamUid,status:{state:'ready'},readyToStream:true,duration:10});
+  const streamRelease=await post(`/api/v1/admin/courses/${streamCourse}/releases`,{units:[{unitVersionId:sv,mediaAssetIds:[streamUpload.json().id]}]},rootCookie);assert.equal(streamRelease.statusCode,201,streamRelease.body);
+  assert.equal((await post('/api/v1/admin/enrollments',{studentId:b,courseId:streamCourse},rootCookie)).statusCode,201);
+  defaultVideoKind='r2-hls';const streamSession=(await post(`/api/v1/release-units/${streamRelease.json().unitIds[0]}/video-sessions`,{},bCookie)).json();assert.equal(streamSession.adapter,'cloudflare-stream');
+  assert.match((await post(`/api/v1/video-sessions/${streamSession.id}/playback`,{},bCookie)).json().url,/stream\.example/);
+  disabledVideoKind='cloudflare-stream';assert.equal((await post(`/api/v1/video-sessions/${streamSession.id}/playback`,{},bCookie)).statusCode,503);
+  assert.equal((await get(bPlayback.url,bCookie)).statusCode,200);disabledVideoKind=null;
   const bEnrollment=(await db.pool.query('SELECT id FROM enrollments WHERE student_id=$1 AND course_id=$2',[b,nextCourse])).rows[0].id;
   assert.equal((await post(`/api/v1/admin/enrollments/${bEnrollment}/suspend`,{},rootCookie)).statusCode,200);
   assert.equal((await get(bPlayback.url,bCookie)).statusCode,404);
+  const aEnrollmentHls=(await db.pool.query('SELECT id FROM enrollments WHERE student_id=$1 AND course_id=$2',[a,nextCourse])).rows[0].id;
+  const aFresh=(await post(`/api/v1/release-units/${hlsUnit}/video-sessions`,{},aCookie)).json();const aUrl=(await post(`/api/v1/video-sessions/${aFresh.id}/playback`,{},aCookie)).json().url;
+  const originalRead=hlsProvider.hlsRead!;let signalRead!:()=>void,releaseRead!:()=>void;const reading=new Promise<void>(resolve=>signalRead=resolve),allowRead=new Promise<void>(resolve=>releaseRead=resolve);
+  hlsProvider.hlsRead=async(uid,file)=>{signalRead();await allowRead;return originalRead(uid,file);};
+  const inFlight=get(aUrl,aCookie);await reading;
+  assert.equal((await post(`/api/v1/admin/enrollments/${aEnrollmentHls}/suspend`,{},rootCookie)).statusCode,200);
+  releaseRead();assert.equal((await inFlight).statusCode,404);hlsProvider.hlsRead=originalRead;
  });
 });

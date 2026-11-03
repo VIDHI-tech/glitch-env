@@ -1,0 +1,4 @@
+export const HLS_MAX_DURATION_SECONDS=800;
+export const HLS_MAX_SOURCE_BYTES=100*1024*1024;
+export const HLS_MAX_SEGMENTS=200;
+export const HLS_SEGMENT_SECONDS=4;

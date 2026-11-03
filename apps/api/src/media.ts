@@ -4,18 +4,21 @@ import {fromNodeHeaders} from 'better-auth/node';
 import {z} from 'zod';
 import type {createAuth} from './auth.js';
 import type {createDatabase} from '@glitch/db';
-import {verifyStreamWebhook,type MediaProvider,type StreamStatus} from './media-provider.js';
+import {verifyStreamWebhook,type StreamStatus} from './media-provider.js';
+import type {MediaServices,VideoKind} from './media-services.js';
+import {HLS_MAX_DURATION_SECONDS,HLS_MAX_SOURCE_BYTES} from './hls-limits.js';
 
 const id=z.uuid();
-const videoInput=z.object({unitVersionId:id,idempotencyKey:id,maxDurationSeconds:z.int().min(1).max(36000),sizeBytes:z.int().min(1).max(100*1024*1024).optional()});
+const videoInput=z.object({unitVersionId:id,idempotencyKey:id,maxDurationSeconds:z.int().min(1).max(36000),sizeBytes:z.int().min(1).max(HLS_MAX_SOURCE_BYTES).optional()});
 const resourceInput=z.object({unitVersionId:id.optional(),enrollmentId:id.optional(),idempotencyKey:id,mimeType:z.enum(['application/pdf','image/png','image/jpeg','image/webp','text/plain','application/zip']),sizeBytes:z.int().min(1).max(25*1024*1024)});
 const failure=(reply:FastifyReply,status:number,code:string,message:string)=>reply.code(status).send({code,message});
 const unavailable=(reply:FastifyReply)=>failure(reply,503,'MEDIA_UNAVAILABLE','Media provider is not configured');
 type DB=ReturnType<typeof createDatabase>;
 type Auth=ReturnType<typeof createAuth>;
 
-export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,provider:MediaProvider|null,webhookSecret?:string,clock:()=>number=Date.now){
+export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,services:MediaServices,webhookSecret?:string,clock:()=>number=Date.now){
  const {pool}=database;
+ const provider=services.object;
  async function actor(request:FastifyRequest,reply:FastifyReply){const session=await auth.api.getSession({headers:fromNodeHeaders(request.headers)});if(!session){failure(reply,401,'UNAUTHENTICATED','Sign in to continue');return null;}return session.user.id;}
  async function admin(request:FastifyRequest,reply:FastifyReply){const who=await actor(request,reply);if(!who)return null;const role=await pool.query("SELECT 1 FROM user_role_assignments WHERE user_id=$1 AND role IN ('super_admin','content_admin')",[who]);if(!role.rowCount){failure(reply,403,'FORBIDDEN','Media administration permission required');return null;}return who;}
  async function providerCall<T>(reply:FastifyReply,action:()=>Promise<T>):Promise<T|null>{try{return await action();}catch(error){requestLog(reply,error);failure(reply,502,'MEDIA_PROVIDER_ERROR','Media provider is unavailable');return null;}}
@@ -23,25 +26,26 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,pr
 
  app.post('/api/v1/admin/media/videos/uploads',async(request,reply)=>{
   const who=await admin(request,reply);if(!who)return;
-  if(!provider)return unavailable(reply);
+  const kind=services.defaultVideoKind,video=kind?services.video(kind):null;if(!kind||!video)return unavailable(reply);
   const parsed=videoInput.safeParse(request.body);if(!parsed.success)return failure(reply,422,'INVALID_INPUT','Invalid video upload');
-  const input=parsed.data;if(provider.videoKind==='r2-hls'&&!input.sizeBytes)return failure(reply,422,'INVALID_INPUT','HLS source size required');const client=await pool.connect();
+  const input=parsed.data;if(kind==='r2-hls'&&(!input.sizeBytes||input.maxDurationSeconds>HLS_MAX_DURATION_SECONDS))return failure(reply,422,'INVALID_INPUT','HLS requires an MP4 source up to 100 MiB and a duration limit of 1–800 seconds');const client=await pool.connect();
   try{
    await client.query('BEGIN');
    const version=await client.query("SELECT v.id FROM learning_unit_versions v JOIN learning_units u ON u.id=v.unit_id WHERE v.id=$1 AND u.kind='video' AND v.publication_state IN ('draft','ready_for_review')",[input.unitVersionId]);
    if(!version.rowCount){await client.query('ROLLBACK');return failure(reply,422,'INVALID_INPUT','Editable video unit version required');}
-   const inserted=await client.query("INSERT INTO media_assets(kind,state,unit_version_id,created_by,idempotency_key,max_duration_seconds,size_bytes,mime_type) VALUES('stream_video','pending_upload',$1,$2,$3,$4,$5,$6) ON CONFLICT(created_by,idempotency_key) DO NOTHING RETURNING id",[input.unitVersionId,who,input.idempotencyKey,input.maxDurationSeconds,input.sizeBytes??null,input.sizeBytes?'video/mp4':null]);
+   const inserted=await client.query("INSERT INTO media_assets(kind,state,unit_version_id,created_by,idempotency_key,max_duration_seconds,size_bytes,mime_type,video_provider) VALUES('stream_video','pending_upload',$1,$2,$3,$4,$5,$6,$7) ON CONFLICT(created_by,idempotency_key) DO NOTHING RETURNING id",[input.unitVersionId,who,input.idempotencyKey,input.maxDurationSeconds,input.sizeBytes??null,input.sizeBytes?'video/mp4':null,kind]);
    const asset=await client.query('SELECT * FROM media_assets WHERE created_by=$1 AND idempotency_key=$2 FOR UPDATE',[who,input.idempotencyKey]);const row=asset.rows[0];
    if(row.kind!=='stream_video'||row.unit_version_id!==input.unitVersionId||row.max_duration_seconds!==input.maxDurationSeconds||Number(row.size_bytes??0)!==(input.sizeBytes??0)){await client.query('ROLLBACK');return failure(reply,409,'CONFLICT','Idempotency key belongs to another upload');}
+   const assetVideo=services.video(row.video_provider as VideoKind);if(!assetVideo){await client.query('ROLLBACK');return unavailable(reply);}
    if(!inserted.rowCount){
     if(row.state==='pending_upload'&&(!row.upload_expires_at||new Date(row.upload_expires_at).getTime()<=clock())){
      if((await client.query('SELECT 1 FROM release_unit_media WHERE asset_id=$1',[row.id])).rowCount){await client.query('ROLLBACK');return failure(reply,409,'CONFLICT','Published video cannot be replaced');}
-     const expiry=new Date(clock()+15*60_000),renewed=await providerCall(reply,()=>provider.createStreamUpload({assetId:row.id,maxDurationSeconds:row.max_duration_seconds,expiresAt:expiry,sizeBytes:row.size_bytes?Number(row.size_bytes):undefined}));if(!renewed){await client.query('ROLLBACK');return;}
+     const expiry=new Date(clock()+15*60_000),renewed=await providerCall(reply,()=>assetVideo.createStreamUpload({assetId:row.id,maxDurationSeconds:row.max_duration_seconds,expiresAt:expiry,sizeBytes:row.size_bytes?Number(row.size_bytes):undefined}));if(!renewed){await client.query('ROLLBACK');return;}
      await client.query("UPDATE media_assets SET provider_id=$1,upload_url=$2,upload_expires_at=$3,upload_attempt=upload_attempt+1,updated_at=now() WHERE id=$4",[renewed.uid,renewed.uploadUrl,expiry,row.id]);await client.query('COMMIT');reply.header('Cache-Control','no-store');return reply.code(200).send({id:row.id,state:'pending_upload',uploadUrl:renewed.uploadUrl,expiresAt:expiry.toISOString(),attempt:row.upload_attempt+1});
     }
     await client.query('COMMIT');reply.header('Cache-Control','no-store');return reply.code(200).send({id:row.id,state:row.state,uploadUrl:row.state==='pending_upload'?row.upload_url:null,expiresAt:row.state==='pending_upload'?row.upload_expires_at:null,attempt:row.upload_attempt});
    }
-   const expiry=new Date(clock()+15*60_000),created=await providerCall(reply,()=>provider.createStreamUpload({assetId:row.id,maxDurationSeconds:input.maxDurationSeconds,expiresAt:expiry,sizeBytes:input.sizeBytes}));
+   const expiry=new Date(clock()+15*60_000),created=await providerCall(reply,()=>assetVideo.createStreamUpload({assetId:row.id,maxDurationSeconds:input.maxDurationSeconds,expiresAt:expiry,sizeBytes:input.sizeBytes}));
    if(!created){await client.query('ROLLBACK');return;}
    await client.query('UPDATE media_assets SET provider_id=$1,upload_url=$2,upload_expires_at=$3,updated_at=now() WHERE id=$4',[created.uid,created.uploadUrl,expiry,row.id]);
    await client.query('COMMIT');reply.header('Cache-Control','no-store');return reply.code(201).send({id:row.id,state:'pending_upload',uploadUrl:created.uploadUrl,expiresAt:expiry.toISOString(),attempt:1});
@@ -50,7 +54,7 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,pr
 
  app.get<{Params:{id:string}}>('/api/v1/admin/media/:id',async(request,reply)=>{
   const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
-  const r=await pool.query("SELECT id,kind,state,unit_version_id,mime_type,size_bytes,duration_seconds,failure_reason,upload_attempt,created_at,updated_at FROM media_assets WHERE id=$1 AND kind IN ('stream_video','r2_resource')",[request.params.id]);
+  const r=await pool.query("SELECT id,kind,state,unit_version_id,video_provider,mime_type,size_bytes,duration_seconds,failure_reason,upload_attempt,created_at,updated_at FROM media_assets WHERE id=$1 AND kind IN ('stream_video','r2_resource')",[request.params.id]);
   if(!r.rowCount)return failure(reply,404,'NOT_FOUND','Media not found');return r.rows[0];
  });
 
@@ -60,20 +64,20 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,pr
   await pool.query(`UPDATE media_assets SET state=CASE WHEN $1='ready' AND $2>max_duration_seconds THEN 'failed' ELSE $1 END,duration_seconds=CASE WHEN $1='ready' AND $2<=max_duration_seconds THEN $2 ELSE duration_seconds END,failure_reason=CASE WHEN $1='ready' AND $2>max_duration_seconds THEN 'Duration exceeds limit' ELSE $3 END,upload_url=NULL,updated_at=now() WHERE provider_id=$4 AND kind='stream_video' AND state NOT IN ('revoked','ready')`,[next,status.durationSeconds??null,status.error??null,uid]);
  }
  app.post<{Params:{id:string}}>('/api/v1/admin/media/:id/sync',async(request,reply)=>{
-  const who=await admin(request,reply);if(!who)return;if(!provider)return unavailable(reply);if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
-  const r=await pool.query("SELECT provider_id FROM media_assets WHERE id=$1 AND kind='stream_video'",[request.params.id]);if(!r.rowCount||!r.rows[0].provider_id)return failure(reply,404,'NOT_FOUND','Media not found');
-  const status=await providerCall(reply,()=>provider.streamStatus(r.rows[0].provider_id));if(!status)return;
+  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
+  const r=await pool.query("SELECT provider_id,video_provider FROM media_assets WHERE id=$1 AND kind='stream_video'",[request.params.id]);if(!r.rowCount||!r.rows[0].provider_id)return failure(reply,404,'NOT_FOUND','Media not found');const video=services.video(r.rows[0].video_provider);if(!video)return unavailable(reply);
+  const status=await providerCall(reply,()=>video.streamStatus(r.rows[0].provider_id));if(!status)return;
   // The local worker owns pending/processing transitions. A status poll may only
   // reconcile its completed output, never race a claimed encoding job.
-  if(provider.videoKind!=='r2-hls'||status.state==='ready')await updateStream(r.rows[0].provider_id,status);
+  if(r.rows[0].video_provider!=='r2-hls'||status.state==='ready')await updateStream(r.rows[0].provider_id,status);
   const updated=await pool.query('SELECT id,state,duration_seconds,failure_reason,upload_attempt FROM media_assets WHERE id=$1',[request.params.id]);return updated.rows[0];
  });
  app.post<{Params:{id:string}}>('/api/v1/admin/media/:id/retry',async(request,reply)=>{
-  const who=await admin(request,reply);if(!who)return;if(!provider)return unavailable(reply);if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
+  const who=await admin(request,reply);if(!who)return;if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
   const client=await pool.connect();try{await client.query('BEGIN');const q=await client.query("SELECT * FROM media_assets WHERE id=$1 AND kind='stream_video' FOR UPDATE",[request.params.id]);const row=q.rows[0];if(!row){await client.query('ROLLBACK');return failure(reply,404,'NOT_FOUND','Media not found');}const expired=row.state==='pending_upload'&&(!row.upload_expires_at||new Date(row.upload_expires_at).getTime()<=clock());const abandoned=row.state==='processing'&&new Date(row.updated_at).getTime()+60*60_000<=clock();
    const editable=await client.query("SELECT 1 FROM learning_unit_versions WHERE id=$1 AND publication_state IN ('draft','ready_for_review')",[row.unit_version_id]);
    if(!editable.rowCount||!(row.state==='failed'||expired||abandoned)||(await client.query('SELECT 1 FROM release_unit_media WHERE asset_id=$1',[row.id])).rowCount){await client.query('ROLLBACK');return failure(reply,409,'CONFLICT','Only failed, expired or abandoned unpublished videos can be retried');}
-   const expiry=new Date(clock()+15*60_000),created=await providerCall(reply,()=>provider.createStreamUpload({assetId:row.id,maxDurationSeconds:row.max_duration_seconds,expiresAt:expiry,sizeBytes:row.size_bytes?Number(row.size_bytes):undefined}));if(!created){await client.query('ROLLBACK');return;}
+   const video=services.video(row.video_provider);if(!video){await client.query('ROLLBACK');return unavailable(reply);}const expiry=new Date(clock()+15*60_000),created=await providerCall(reply,()=>video.createStreamUpload({assetId:row.id,maxDurationSeconds:row.max_duration_seconds,expiresAt:expiry,sizeBytes:row.size_bytes?Number(row.size_bytes):undefined}));if(!created){await client.query('ROLLBACK');return;}
    await client.query("UPDATE media_assets SET state='pending_upload',provider_id=$1,upload_url=$2,upload_expires_at=$3,duration_seconds=NULL,failure_reason=NULL,upload_attempt=upload_attempt+1,updated_at=now() WHERE id=$4",[created.uid,created.uploadUrl,expiry,row.id]);await client.query('COMMIT');reply.header('Cache-Control','no-store');return {id:row.id,state:'pending_upload',attempt:row.upload_attempt+1,uploadUrl:created.uploadUrl,expiresAt:expiry.toISOString()};
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
  });
@@ -121,8 +125,8 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,pr
   scope.post('/webhooks/cloudflare/stream',async(request,reply)=>{
    if(!webhookSecret)return unavailable(reply);const body=request.body;if(!Buffer.isBuffer(body)||!verifyStreamWebhook(body,request.headers['webhook-signature'] as string|undefined,webhookSecret,clock()))return failure(reply,401,'INVALID_SIGNATURE','Webhook signature invalid or expired');
    let event:Record<string,any>;try{event=JSON.parse(body.toString('utf8'));}catch{return failure(reply,422,'INVALID_INPUT','Invalid webhook body');}
-   if(typeof event.uid!=='string'||!event.uid)return failure(reply,422,'INVALID_INPUT','Video ID missing');
-   const digest=createHash('sha256').update(body).digest('hex');const client=await pool.connect();try{await client.query('BEGIN');const inserted=await client.query('INSERT INTO stream_webhook_events(digest,provider_id) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING digest',[digest,event.uid]);if(inserted.rowCount){const status:StreamStatus={uid:event.uid,state:event.status?.state==='error'?'failed':event.readyToStream===true&&event.status?.state==='ready'?'ready':'processing',readyToStream:event.readyToStream===true,durationSeconds:Number(event.duration)>0?Math.ceil(Number(event.duration)):undefined,error:typeof event.status?.errReasonCode==='string'?event.status.errReasonCode:undefined};const next=status.state==='ready'&&status.durationSeconds?'ready':status.state==='failed'?'failed':'processing';await client.query("UPDATE media_assets SET state=CASE WHEN $1='ready' AND $2>max_duration_seconds THEN 'failed' ELSE $1 END,duration_seconds=CASE WHEN $1='ready' AND $2<=max_duration_seconds THEN $2 ELSE duration_seconds END,failure_reason=CASE WHEN $1='ready' AND $2>max_duration_seconds THEN 'Duration exceeds limit' ELSE $3 END,upload_url=NULL,updated_at=now() WHERE provider_id=$4 AND kind='stream_video' AND state NOT IN ('revoked','ready')",[next,status.durationSeconds??null,status.error??null,event.uid]);}await client.query('COMMIT');return {accepted:true,duplicate:!inserted.rowCount};}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+   if(typeof event.uid!=='string'||!event.uid||event.uid.startsWith('hls:'))return failure(reply,422,'INVALID_INPUT','Stream video ID required');
+   const digest=createHash('sha256').update(body).digest('hex');const client=await pool.connect();try{await client.query('BEGIN');const inserted=await client.query('INSERT INTO stream_webhook_events(digest,provider_id) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING digest',[digest,event.uid]);if(inserted.rowCount){const status:StreamStatus={uid:event.uid,state:event.status?.state==='error'?'failed':event.readyToStream===true&&event.status?.state==='ready'?'ready':'processing',readyToStream:event.readyToStream===true,durationSeconds:Number(event.duration)>0?Math.ceil(Number(event.duration)):undefined,error:typeof event.status?.errReasonCode==='string'?event.status.errReasonCode:undefined};const next=status.state==='ready'&&status.durationSeconds?'ready':status.state==='failed'?'failed':'processing';await client.query("UPDATE media_assets SET state=CASE WHEN $1='ready' AND $2>max_duration_seconds THEN 'failed' ELSE $1 END,duration_seconds=CASE WHEN $1='ready' AND $2<=max_duration_seconds THEN $2 ELSE duration_seconds END,failure_reason=CASE WHEN $1='ready' AND $2>max_duration_seconds THEN 'Duration exceeds limit' ELSE $3 END,upload_url=NULL,updated_at=now() WHERE provider_id=$4 AND kind='stream_video' AND video_provider='cloudflare-stream' AND state NOT IN ('revoked','ready')",[next,status.durationSeconds??null,status.error??null,event.uid]);}await client.query('COMMIT');return {accepted:true,duplicate:!inserted.rowCount};}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
   });
  });
 }
