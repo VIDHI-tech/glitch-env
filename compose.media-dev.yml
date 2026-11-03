@@ -15,7 +15,9 @@ services:
       timeout: 3s
       retries: 10
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-06T17-38-46Z
+    build:
+      context: .
+      dockerfile: Dockerfile.minio-dev
     command: server /data --console-address :9001
     environment:
       MINIO_ROOT_USER: glitch_dev
