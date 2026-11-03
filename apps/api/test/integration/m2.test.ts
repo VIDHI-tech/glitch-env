@@ -174,6 +174,9 @@ test('M2 learning journey and isolation',async t=>{
   assert.equal((await post(`/api/v1/admin/courses/${course}/releases`,{units:[unitsFor()[0],unitsFor()[0]]},rootCookie)).statusCode,422);
   const valid=await publish({1:[{prerequisiteIndex:0,type:'completed'}],2:[{prerequisiteIndex:1,type:'review_approved'}],3:[{prerequisiteIndex:1,type:'first_attempt_submitted'}]});assert.equal(valid.statusCode,201,valid.body);
   assert.equal(valid.json().release_number,1);
+  const originalUnit=(await db.pool.query('SELECT unit_id FROM learning_unit_versions WHERE id=$1',[versions[0]])).rows[0].unit_id;
+  const anotherVersion=(await db.pool.query("INSERT INTO learning_unit_versions(unit_id,version,title,publication_state) VALUES($1,2,'Alternate video','ready_for_review') RETURNING id",[originalUnit])).rows[0].id;
+  const duplicateLogical=await post(`/api/v1/admin/courses/${course}/releases`,{units:[{unitVersionId:versions[0],durationSeconds:10},{unitVersionId:anotherVersion,durationSeconds:10}]},rootCookie);assert.equal(duplicateLogical.statusCode,422,duplicateLogical.body);assert.equal(duplicateLogical.json().code,'INVALID_INPUT');
   const feedbackFixture=await fixture(['exercise','video','feedback'],{0:'feedback_then_continue'});
   const impossible=await post(`/api/v1/admin/courses/${feedbackFixture.course}/releases`,{units:[{unitVersionId:feedbackFixture.versions[0]},{unitVersionId:feedbackFixture.versions[1],durationSeconds:10},{unitVersionId:feedbackFixture.versions[2],conditions:[{prerequisiteIndex:0,type:'first_attempt_submitted'}]}]},rootCookie);assert.equal(impossible.statusCode,422);
  });

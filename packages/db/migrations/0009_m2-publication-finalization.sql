@@ -9,6 +9,10 @@ ALTER TABLE curriculum_release_units ADD COLUMN day_position integer;--> stateme
 ALTER TABLE curriculum_release_units ADD COLUMN chapter_id uuid;--> statement-breakpoint
 ALTER TABLE curriculum_release_units ADD COLUMN chapter_title text;--> statement-breakpoint
 ALTER TABLE curriculum_release_units ADD COLUMN chapter_position integer;--> statement-breakpoint
+-- Drizzle applies this migration in one transaction. Remove the old unconditional
+-- UPDATE guard before backfilling existing published rows; the table DDL lock is
+-- held until the new publication-aware guard is installed and committed.
+DROP TRIGGER immutable_release_unit ON curriculum_release_units;--> statement-breakpoint
 UPDATE curriculum_release_units ru SET week_id=w.id,week_title=w.title,week_position=w.position,day_id=d.id,day_title=d.title,day_position=d.position,chapter_id=c.id,chapter_title=c.title,chapter_position=c.position FROM learning_units u JOIN chapters c ON c.id=u.chapter_id JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE ru.unit_id=u.id;--> statement-breakpoint
 ALTER TABLE curriculum_release_units ALTER COLUMN week_id SET NOT NULL,ALTER COLUMN week_title SET NOT NULL,ALTER COLUMN week_position SET NOT NULL,ALTER COLUMN day_id SET NOT NULL,ALTER COLUMN day_title SET NOT NULL,ALTER COLUMN day_position SET NOT NULL,ALTER COLUMN chapter_id SET NOT NULL,ALTER COLUMN chapter_title SET NOT NULL,ALTER COLUMN chapter_position SET NOT NULL;--> statement-breakpoint
 CREATE FUNCTION glitch_guard_release_child() RETURNS trigger AS $$
@@ -24,7 +28,6 @@ BEGIN
  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END;
 $$ LANGUAGE plpgsql;--> statement-breakpoint
-DROP TRIGGER immutable_release_unit ON curriculum_release_units;--> statement-breakpoint
 CREATE TRIGGER guarded_release_unit BEFORE INSERT OR UPDATE OR DELETE ON curriculum_release_units FOR EACH ROW EXECUTE FUNCTION glitch_guard_release_child();--> statement-breakpoint
 CREATE FUNCTION glitch_guard_release_condition() RETURNS trigger AS $$
 DECLARE target_release uuid;
@@ -54,7 +57,7 @@ CREATE TRIGGER guarded_release BEFORE UPDATE OR DELETE ON curriculum_releases FO
 CREATE FUNCTION glitch_guard_published_definition() RETURNS trigger AS $$
 BEGIN
  IF EXISTS(SELECT 1 FROM curriculum_release_units WHERE unit_version_id=OLD.unit_version_id) THEN RAISE EXCEPTION 'published exercise definitions are immutable'; END IF;
- RETURN OLD;
+ RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END;
 $$ LANGUAGE plpgsql;--> statement-breakpoint
 CREATE TRIGGER immutable_published_definition BEFORE UPDATE OR DELETE ON exercise_definitions FOR EACH ROW EXECUTE FUNCTION glitch_guard_published_definition();

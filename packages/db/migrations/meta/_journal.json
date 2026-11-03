@@ -78,6 +78,13 @@
       "when": 1793691760000,
       "tag": "0010_m2-published-version-state",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793694030000,
+      "tag": "0011_m2-definition-trigger-repair",
+      "breakpoints": true
     }
   ]
 }
