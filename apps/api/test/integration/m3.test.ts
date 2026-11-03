@@ -14,7 +14,8 @@ const base=new URL(process.env.TEST_DATABASE_URL),name=`glitch_m3_it_${process.p
 const adminUrl=new URL(base);adminUrl.pathname='/postgres';const dbUrl=new URL(base);dbUrl.pathname=`/${name}`;
 const origin='http://127.0.0.1:3002',secret='m3-webhook-secret',mailer=new CaptureMailer();
 let admin:Pool,db:ReturnType<typeof createDatabase>,app:ReturnType<typeof buildApp>,now=Date.now();
-const objects=new Map<string,{sizeBytes:number;mimeType:string}>();let uploads=0;
+const objects=new Map<string,{sizeBytes:number;mimeType:string;fingerprint?:string}>();let uploads=0,raceKey:string|null=null,rejectedOverwrite=0;
+function conditionalPut(key:string,item:{sizeBytes:number;mimeType:string;fingerprint?:string}){if(objects.has(key))throw new Error('PreconditionFailed');objects.set(key,item);}
 const provider:MediaProvider={
  async createStreamUpload(){uploads++;return {uid:`video-${uploads}`,uploadUrl:`https://upload.example/video-${uploads}`};},
  async streamStatus(uid){return {uid,state:'ready',readyToStream:true,durationSeconds:10};},
@@ -22,7 +23,7 @@ const provider:MediaProvider={
  async r2Upload(key){return `https://r2.example/${key}?signed=put`;},
  async r2Download(key){return `https://r2.example/${key}?signed=get`;},
  async r2Head(key){return objects.get(key)??null;},
- async r2Validate(){return true;},
+ async r2Validate(key){if(key===raceKey){try{conditionalPut(key,{sizeBytes:123,mimeType:'application/pdf',fingerprint:'attacker'});}catch{rejectedOverwrite++;}}return true;},
  async r2Promote(tempKey,finalKey){const item=objects.get(tempKey);if(!item)throw new Error('Source missing');objects.set(finalKey,item);},
  async r2Delete(key){objects.delete(key);}
 };
@@ -65,6 +66,17 @@ test('M3 private media lifecycle and M2 progression',async t=>{
   const state=(await get(`/api/v1/admin/media/${videoId}`,rootCookie)).json();assert.equal(state.state,'ready');assert.equal(state.duration_seconds,10);
   assert.equal((await post(`/api/v1/admin/media/${videoId}/retry`,{},rootCookie)).statusCode,409);
  });
+ await t.test('expired and abandoned Stream uploads recover without reusing a URL',async()=>{
+  const altVersion=(await db.pool.query("INSERT INTO learning_unit_versions(unit_id,version,title,publication_state) VALUES($1,2,'Alternate','ready_for_review') RETURNING id",[videoUnit])).rows[0].id;
+  const input={unitVersionId:altVersion,idempotencyKey:randomUUID(),maxDurationSeconds:10};
+  const first=await post('/api/v1/admin/media/videos/uploads',input,rootCookie);assert.equal(first.statusCode,201,first.body);
+  const oldUrl=first.json().uploadUrl,oldUid=`video-${uploads}`;now+=15*60_000+1;
+  const renewed=await post('/api/v1/admin/media/videos/uploads',input,rootCookie);assert.equal(renewed.statusCode,200,renewed.body);assert.notEqual(renewed.json().uploadUrl,oldUrl);assert.equal(renewed.json().attempt,2);
+  await webhook({uid:oldUid,status:{state:'ready'},readyToStream:true,duration:10});assert.equal((await get(`/api/v1/admin/media/${first.json().id}`,rootCookie)).json().state,'pending_upload');
+  const currentUid=`video-${uploads}`;await webhook({uid:currentUid,status:{state:'inprogress'},readyToStream:false});
+  now+=60*60_000+1;const retry=await post(`/api/v1/admin/media/${first.json().id}/retry`,{},rootCookie);assert.equal(retry.statusCode,200,retry.body);assert.equal(retry.json().attempt,3);assert.notEqual(retry.json().uploadUrl,renewed.json().uploadUrl);
+  await webhook({uid:currentUid,status:{state:'ready'},readyToStream:true,duration:10});assert.equal((await get(`/api/v1/admin/media/${first.json().id}`,rootCookie)).json().state,'pending_upload');
+ });
  await t.test('R2 metadata, size and type validation',async()=>{
   const input={unitVersionId:version,idempotencyKey:randomUUID(),mimeType:'application/pdf',sizeBytes:123};
   assert.equal((await post('/api/v1/media/resources/uploads',{...input,mimeType:'application/x-executable'},rootCookie)).statusCode,422);
@@ -73,8 +85,8 @@ test('M3 private media lifecycle and M2 progression',async t=>{
   assert.equal((await post('/api/v1/media/resources/uploads',input,rootCookie)).json().id,resourceId);
   assert.equal((await post(`/api/v1/media/resources/${resourceId}/confirm`,{},rootCookie)).statusCode,409);
   const key=(await db.pool.query('SELECT object_key FROM media_assets WHERE id=$1',[resourceId])).rows[0].object_key;assert.ok(key.startsWith('staging/course/'));
-  objects.set(key,{sizeBytes:123,mimeType:'application/pdf'});
-  assert.equal((await post(`/api/v1/media/resources/${resourceId}/confirm`,{},rootCookie)).statusCode,200);assert.equal(objects.has(key),false);
+  conditionalPut(key,{sizeBytes:123,mimeType:'application/pdf',fingerprint:'validated'});raceKey=key;
+  assert.equal((await post(`/api/v1/media/resources/${resourceId}/confirm`,{},rootCookie)).statusCode,200);raceKey=null;assert.equal(rejectedOverwrite,1);assert.equal(objects.has(key),false);const finalKey=(await db.pool.query('SELECT object_key FROM media_assets WHERE id=$1',[resourceId])).rows[0].object_key;assert.equal(objects.get(finalKey)?.fingerprint,'validated');
   assert.equal((await post(`/api/v1/media/resources/${resourceId}/confirm`,{},rootCookie)).statusCode,200);
   const badInput={unitVersionId:otherVersion,idempotencyKey:randomUUID(),mimeType:'image/png',sizeBytes:50};const bad=(await post('/api/v1/media/resources/uploads',badInput,rootCookie)).json();const badKey=(await db.pool.query('SELECT object_key FROM media_assets WHERE id=$1',[bad.id])).rows[0].object_key;objects.set(badKey,{sizeBytes:40,mimeType:'image/png'});assert.equal((await post(`/api/v1/media/resources/${bad.id}/confirm`,{},rootCookie)).statusCode,422);assert.equal(objects.has(badKey),false);
   const orphan=(await post('/api/v1/media/resources/uploads',{unitVersionId:otherVersion,idempotencyKey:randomUUID(),mimeType:'application/pdf',sizeBytes:10},rootCookie)).json();orphanId=orphan.id;const orphanKey=(await db.pool.query('SELECT object_key FROM media_assets WHERE id=$1',[orphanId])).rows[0].object_key;objects.set(orphanKey,{sizeBytes:10,mimeType:'application/pdf'});assert.equal((await post(`/api/v1/media/resources/${orphanId}/confirm`,{},rootCookie)).statusCode,200);

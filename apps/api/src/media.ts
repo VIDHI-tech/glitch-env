@@ -33,11 +33,18 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,pr
    const inserted=await client.query("INSERT INTO media_assets(kind,state,unit_version_id,created_by,idempotency_key,max_duration_seconds) VALUES('stream_video','pending_upload',$1,$2,$3,$4) ON CONFLICT(created_by,idempotency_key) DO NOTHING RETURNING id",[input.unitVersionId,who,input.idempotencyKey,input.maxDurationSeconds]);
    const asset=await client.query('SELECT * FROM media_assets WHERE created_by=$1 AND idempotency_key=$2 FOR UPDATE',[who,input.idempotencyKey]);const row=asset.rows[0];
    if(row.kind!=='stream_video'||row.unit_version_id!==input.unitVersionId||row.max_duration_seconds!==input.maxDurationSeconds){await client.query('ROLLBACK');return failure(reply,409,'CONFLICT','Idempotency key belongs to another upload');}
-   if(!inserted.rowCount){await client.query('COMMIT');reply.header('Cache-Control','no-store');return reply.code(200).send({id:row.id,state:row.state,uploadUrl:row.state==='pending_upload'?row.upload_url:null,attempt:row.upload_attempt});}
-   const created=await providerCall(reply,()=>provider.createStreamUpload({assetId:row.id,maxDurationSeconds:input.maxDurationSeconds,expiresAt:new Date(clock()+15*60_000)}));
+   if(!inserted.rowCount){
+    if(row.state==='pending_upload'&&(!row.upload_expires_at||new Date(row.upload_expires_at).getTime()<=clock())){
+     if((await client.query('SELECT 1 FROM release_unit_media WHERE asset_id=$1',[row.id])).rowCount){await client.query('ROLLBACK');return failure(reply,409,'CONFLICT','Published video cannot be replaced');}
+     const expiry=new Date(clock()+15*60_000),renewed=await providerCall(reply,()=>provider.createStreamUpload({assetId:row.id,maxDurationSeconds:row.max_duration_seconds,expiresAt:expiry}));if(!renewed){await client.query('ROLLBACK');return;}
+     await client.query("UPDATE media_assets SET provider_id=$1,upload_url=$2,upload_expires_at=$3,upload_attempt=upload_attempt+1,updated_at=now() WHERE id=$4",[renewed.uid,renewed.uploadUrl,expiry,row.id]);await client.query('COMMIT');reply.header('Cache-Control','no-store');return reply.code(200).send({id:row.id,state:'pending_upload',uploadUrl:renewed.uploadUrl,expiresAt:expiry.toISOString(),attempt:row.upload_attempt+1});
+    }
+    await client.query('COMMIT');reply.header('Cache-Control','no-store');return reply.code(200).send({id:row.id,state:row.state,uploadUrl:row.state==='pending_upload'?row.upload_url:null,expiresAt:row.state==='pending_upload'?row.upload_expires_at:null,attempt:row.upload_attempt});
+   }
+   const expiry=new Date(clock()+15*60_000),created=await providerCall(reply,()=>provider.createStreamUpload({assetId:row.id,maxDurationSeconds:input.maxDurationSeconds,expiresAt:expiry}));
    if(!created){await client.query('ROLLBACK');return;}
-   await client.query('UPDATE media_assets SET provider_id=$1,upload_url=$2,updated_at=now() WHERE id=$3',[created.uid,created.uploadUrl,row.id]);
-   await client.query('COMMIT');reply.header('Cache-Control','no-store');return reply.code(201).send({id:row.id,state:'pending_upload',uploadUrl:created.uploadUrl,attempt:1});
+   await client.query('UPDATE media_assets SET provider_id=$1,upload_url=$2,upload_expires_at=$3,updated_at=now() WHERE id=$4',[created.uid,created.uploadUrl,expiry,row.id]);
+   await client.query('COMMIT');reply.header('Cache-Control','no-store');return reply.code(201).send({id:row.id,state:'pending_upload',uploadUrl:created.uploadUrl,expiresAt:expiry.toISOString(),attempt:1});
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
  });
 
@@ -60,9 +67,11 @@ export function registerMediaRoutes(app:FastifyInstance,database:DB,auth:Auth,pr
  });
  app.post<{Params:{id:string}}>('/api/v1/admin/media/:id/retry',async(request,reply)=>{
   const who=await admin(request,reply);if(!who)return;if(!provider)return unavailable(reply);if(!id.safeParse(request.params.id).success)return failure(reply,404,'NOT_FOUND','Media not found');
-  const client=await pool.connect();try{await client.query('BEGIN');const q=await client.query("SELECT * FROM media_assets WHERE id=$1 AND kind='stream_video' FOR UPDATE",[request.params.id]);const row=q.rows[0];if(!row){await client.query('ROLLBACK');return failure(reply,404,'NOT_FOUND','Media not found');}if(row.state!=='failed'||(await client.query('SELECT 1 FROM release_unit_media WHERE asset_id=$1',[row.id])).rowCount){await client.query('ROLLBACK');return failure(reply,409,'CONFLICT','Only failed, unpublished videos can be retried');}
-   const created=await providerCall(reply,()=>provider.createStreamUpload({assetId:row.id,maxDurationSeconds:row.max_duration_seconds,expiresAt:new Date(clock()+15*60_000)}));if(!created){await client.query('ROLLBACK');return;}
-   await client.query("UPDATE media_assets SET state='pending_upload',provider_id=$1,upload_url=$2,duration_seconds=NULL,failure_reason=NULL,upload_attempt=upload_attempt+1,updated_at=now() WHERE id=$3",[created.uid,created.uploadUrl,row.id]);await client.query('COMMIT');reply.header('Cache-Control','no-store');return {id:row.id,state:'pending_upload',attempt:row.upload_attempt+1,uploadUrl:created.uploadUrl};
+  const client=await pool.connect();try{await client.query('BEGIN');const q=await client.query("SELECT * FROM media_assets WHERE id=$1 AND kind='stream_video' FOR UPDATE",[request.params.id]);const row=q.rows[0];if(!row){await client.query('ROLLBACK');return failure(reply,404,'NOT_FOUND','Media not found');}const expired=row.state==='pending_upload'&&(!row.upload_expires_at||new Date(row.upload_expires_at).getTime()<=clock());const abandoned=row.state==='processing'&&new Date(row.updated_at).getTime()+60*60_000<=clock();
+   const editable=await client.query("SELECT 1 FROM learning_unit_versions WHERE id=$1 AND publication_state IN ('draft','ready_for_review')",[row.unit_version_id]);
+   if(!editable.rowCount||!(row.state==='failed'||expired||abandoned)||(await client.query('SELECT 1 FROM release_unit_media WHERE asset_id=$1',[row.id])).rowCount){await client.query('ROLLBACK');return failure(reply,409,'CONFLICT','Only failed, expired or abandoned unpublished videos can be retried');}
+   const expiry=new Date(clock()+15*60_000),created=await providerCall(reply,()=>provider.createStreamUpload({assetId:row.id,maxDurationSeconds:row.max_duration_seconds,expiresAt:expiry}));if(!created){await client.query('ROLLBACK');return;}
+   await client.query("UPDATE media_assets SET state='pending_upload',provider_id=$1,upload_url=$2,upload_expires_at=$3,duration_seconds=NULL,failure_reason=NULL,upload_attempt=upload_attempt+1,updated_at=now() WHERE id=$4",[created.uid,created.uploadUrl,expiry,row.id]);await client.query('COMMIT');reply.header('Cache-Control','no-store');return {id:row.id,state:'pending_upload',attempt:row.upload_attempt+1,uploadUrl:created.uploadUrl,expiresAt:expiry.toISOString()};
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
  });
  app.post<{Params:{id:string}}>('/api/v1/admin/media/:id/revoke',async(request,reply)=>{

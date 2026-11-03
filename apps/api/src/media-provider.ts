@@ -57,7 +57,7 @@ export class CloudflareMediaProvider implements MediaProvider{
   const data=`${header}.${claims}`;const signature=createSign('RSA-SHA256').update(data).end().sign(this.privateKey).toString('base64url');
   return {url:`https://customer-${this.customerCode}.cloudflarestream.com/${data}.${signature}/iframe`,expiresAt:expiresAt.toISOString()};
  }
- async r2Upload(key:string,mimeType:string,sizeBytes:number,expiresSeconds:number){return getSignedUrl(this.r2,new PutObjectCommand({Bucket:this.bucket,Key:key,ContentType:mimeType,ContentLength:sizeBytes}),{expiresIn:expiresSeconds,signableHeaders:new Set(['content-type','content-length'])});}
+ async r2Upload(key:string,mimeType:string,sizeBytes:number,expiresSeconds:number){return getSignedUrl(this.r2,new PutObjectCommand({Bucket:this.bucket,Key:key,ContentType:mimeType,ContentLength:sizeBytes,IfNoneMatch:'*'}),{expiresIn:expiresSeconds,signableHeaders:new Set(['content-type','content-length','if-none-match'])});}
  async r2Download(key:string,expiresSeconds:number){return getSignedUrl(this.r2,new GetObjectCommand({Bucket:this.bucket,Key:key}),{expiresIn:expiresSeconds});}
  async r2Head(key:string){try{const item=await this.r2.send(new HeadObjectCommand({Bucket:this.bucket,Key:key}));return {sizeBytes:Number(item.ContentLength),mimeType:item.ContentType??''};}catch(error){if((error as {name?:string}).name==='NotFound'||(error as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode===404)return null;throw error;}}
  async r2Validate(key:string,mimeType:string){const item=await this.r2.send(new GetObjectCommand({Bucket:this.bucket,Key:key,Range:'bytes=0-511'}));if(!item.Body)return false;return matchesMagic(await item.Body.transformToByteArray(),mimeType);}

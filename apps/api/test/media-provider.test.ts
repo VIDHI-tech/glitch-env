@@ -33,5 +33,6 @@ test('Stream playback token is signed for one video and expires',async()=>{
   assert.equal(put.searchParams.get('X-Amz-Expires'),'120');
   assert.ok(put.searchParams.get('X-Amz-SignedHeaders')?.includes('content-length'));
   assert.ok(put.searchParams.get('X-Amz-SignedHeaders')?.includes('content-type'));
+  assert.ok(put.searchParams.get('X-Amz-SignedHeaders')?.includes('if-none-match'));
  }finally{for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
 });
