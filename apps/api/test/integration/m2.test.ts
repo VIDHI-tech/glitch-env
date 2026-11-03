@@ -39,6 +39,14 @@ test('M2 learning journey and isolation',async t=>{
   const roadA=(await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json(),roadB=(await get(`/api/v1/enrollments/${bEnrollment}/roadmap`,bCookie)).json();assert.equal(roadA.percent,0);assert.equal(roadB.percent,0);assert.equal(roadA.currentUnitId,units[0]);
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,bCookie)).statusCode,404);
   await assert.rejects(db.pool.query('UPDATE curriculum_release_units SET content=$1 WHERE id=$2',['tamper',units[0]]));
+  await assert.rejects(db.pool.query('INSERT INTO curriculum_release_units(release_id,unit_id,unit_version_id,position,required,kind,completion_policy,content,week_id,week_title,week_position,day_id,day_title,day_position,chapter_id,chapter_title,chapter_position) SELECT release_id,unit_id,unit_version_id,99,required,kind,completion_policy,content,week_id,week_title,week_position,day_id,day_title,day_position,chapter_id,chapter_title,chapter_position FROM curriculum_release_units WHERE id=$1',[units[0]]));
+  await assert.rejects(db.pool.query("INSERT INTO release_conditions(release_unit_id,prerequisite_release_unit_id,condition_type) VALUES($1,$2,'completed')",[units[1],units[0]]));
+  await assert.rejects(db.pool.query('DELETE FROM release_conditions WHERE release_unit_id=$1',[units[3]]));
+  await assert.rejects(db.pool.query('DELETE FROM curriculum_release_units WHERE id=$1',[units[0]]));
+  await assert.rejects(db.pool.query("UPDATE exercise_definitions SET prompt='tampered' WHERE unit_version_id=$1",[versions[2]]));
+  await db.pool.query("UPDATE days SET title='Changed draft day' WHERE id=$1",[day]);
+  await db.pool.query("UPDATE chapters SET title='Changed draft chapter' WHERE id=$1",[chapter]);
+  assert.equal((await get(`/api/v1/enrollments/${aEnrollment}/roadmap`,aCookie)).json().days[0].title,'Day 1');
   await assert.rejects(db.pool.query("UPDATE enrollments SET state='invalid' WHERE id=$1",[aEnrollment]));
  });
  await t.test('video watch coverage, new login resume and independent unlocks',async()=>{
