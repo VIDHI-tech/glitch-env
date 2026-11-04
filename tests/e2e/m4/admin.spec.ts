@@ -63,6 +63,11 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  await page.getByRole('textbox',{name:'New unit title'}).fill('QA draft video');
  await page.getByRole('combobox',{name:'Unit kind'}).selectOption('video');
  await page.getByRole('button',{name:'Add unit'}).click();
+ await page.getByRole('checkbox',{name:'Include QA draft video in release'}).check();
+ await page.getByRole('button',{name:'Run publication checklist'}).click();
+ await expect(page.getByText('Fix before publication')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Publish immutable release ↗'})).toBeHidden();
+ await page.getByRole('checkbox',{name:'Include QA draft video in release'}).uncheck();
  await page.getByRole('button',{name:'Move unit down'}).first().click();
  await expect(page.getByText('Order saved.')).toBeVisible();
  await page.screenshot({path:resolve(screenshots,'m4-course-builder.png'),fullPage:true});

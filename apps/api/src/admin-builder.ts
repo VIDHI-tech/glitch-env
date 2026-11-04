@@ -195,7 +195,7 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
   if(!v.rowCount)return failure(reply,404,'Version unavailable');const courseId=await courseForUnit(v.rows[0].unit_id);
   if(!courseId)return failure(reply,404,'Version unavailable');if(!await guardedCourse(request,reply,courseId))return;
   if(v.rows[0].kind==='exercise'&&!p.data.completionPolicy)return failure(reply,422,'Exercise policy required');
-  const c=await pool.connect();try{await c.query('BEGIN');
+  const c=await pool.connect();try{await c.query('BEGIN');await c.query('SELECT id FROM courses WHERE id=$1 FOR UPDATE',[courseId]);
    const locked=await c.query('SELECT publication_state,revision FROM learning_unit_versions WHERE id=$1 FOR UPDATE',[request.params.id]);
    const pinned=await c.query('SELECT 1 FROM curriculum_release_units WHERE unit_version_id=$1',[request.params.id]);
    if(!['draft','ready_for_review'].includes(locked.rows[0].publication_state)||pinned.rowCount){await c.query('ROLLBACK');return failure(reply,409,'Published or pinned version is immutable');}
@@ -220,8 +220,11 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
   if(!uuid.safeParse(request.params.id).success)return failure(reply,404,'Version unavailable');const v=await pool.query('SELECT unit_id FROM learning_unit_versions WHERE id=$1',[request.params.id]);
   if(!v.rowCount)return failure(reply,404,'Version unavailable');const courseId=await courseForUnit(v.rows[0].unit_id);
   if(!courseId)return failure(reply,404,'Version unavailable');if(!await guardedCourse(request,reply,courseId))return;
-  const r=await pool.query("UPDATE learning_unit_versions SET publication_state='ready_for_review' WHERE id=$1 AND publication_state IN ('draft','ready_for_review') RETURNING id,publication_state",[request.params.id]);
-  if(!r.rowCount)return failure(reply,409,'Published version is immutable');return r.rows[0];
+  const c=await pool.connect();try{await c.query('BEGIN');await c.query('SELECT id FROM courses WHERE id=$1 FOR UPDATE',[courseId]);
+   const r=await c.query("UPDATE learning_unit_versions SET publication_state='ready_for_review',revision=revision+1 WHERE id=$1 AND publication_state IN ('draft','ready_for_review') RETURNING id,publication_state,revision",[request.params.id]);
+   if(!r.rowCount){await c.query('ROLLBACK');return failure(reply,409,'Published version is immutable');}
+   await c.query('COMMIT');return r.rows[0];
+  }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
  });
  app.get<{Params:{id:string}}>('/api/v1/admin/builder/courses/:id/preview',async(request,reply)=>{
   if(!await guardedCourse(request,reply,request.params.id))return;
