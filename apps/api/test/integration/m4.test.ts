@@ -47,7 +47,7 @@ test('M4 builder scopes authors, edits drafts, preserves published versions and 
   const edit=await req('PATCH',`/api/v1/admin/builder/unit-versions/${versionId}`,{title:'QA exercise edited',description:'Draft',learningObjective:'Observe',content:'QA fixture revised',required:true,revision:0,completionPolicy:'submit_to_complete',prompt:'Separate observation from interpretation'},authorCookie);assert.equal(edit.statusCode,200,edit.body);
   const stale=await req('PATCH',`/api/v1/admin/builder/unit-versions/${versionId}`,{title:'Stale overwrite',description:'',learningObjective:'',content:'',required:true,revision:0,completionPolicy:'submit_to_complete'},authorCookie);assert.equal(stale.statusCode,409);
   const fresh=(await get(`/api/v1/admin/builder/courses/${a}`,authorCookie)).json().versions.find((v:{id:string})=>v.id===versionId);assert.equal(fresh.title,'QA exercise edited');
-  assert.equal((await post(`/api/v1/admin/builder/unit-versions/${versionId}/ready`,{},authorCookie)).statusCode,200);
+  assert.equal((await post(`/api/v1/admin/builder/unit-versions/${versionId}/ready`,{revision:edit.json().revision},authorCookie)).statusCode,200);
   assert.equal((await req('PATCH',`/api/v1/admin/builder/unit-versions/${versionId}`,{title:'Stale after ready',description:'',learningObjective:'',content:'',required:true,revision:edit.json().revision,completionPolicy:'submit_to_complete'},authorCookie)).statusCode,409);
   const badSelection={units:[{unitVersionId:versionId,required:true,content:'QA fixture revised',mediaAssetIds:[],conditions:[{prerequisiteIndex:0,type:'completed'}]}]};assert.equal((await post(`/api/v1/admin/builder/courses/${a}/preflight`,badSelection,authorCookie)).json().valid,false);assert.equal((await post(`/api/v1/admin/courses/${a}/releases`,badSelection)).statusCode,422);
   assert.equal((await req('PUT',`/api/v1/admin/builder/courses/${a}/prerequisites/${unit.unit.id}`,{prerequisiteUnitId:null,type:'completed'},authorCookie)).statusCode,200);
@@ -60,7 +60,7 @@ test('M4 builder scopes authors, edits drafts, preserves published versions and 
   await assert.rejects(db.pool.query('UPDATE learning_unit_versions SET content=$1 WHERE id=$2',['tamper',versionId]));
   const fork=(await post(`/api/v1/admin/builder/units/${unit.unit.id}/versions`,{},authorCookie)).json();assert.equal(fork.version,2);assert.equal(fork.content,'QA fixture revised');
   assert.equal((await post(`/api/v1/admin/builder/courses/${a}/preflight`,{units:[{...selection.units[0],unitVersionId:fork.id}]},authorCookie)).json().valid,false);
-  assert.equal((await post(`/api/v1/admin/builder/unit-versions/${fork.id}/ready`,{},authorCookie)).statusCode,200);
+  assert.equal((await post(`/api/v1/admin/builder/unit-versions/${fork.id}/ready`,{revision:0},authorCookie)).statusCode,200);
   const duplicateLogical={units:[selection.units[0],{...selection.units[0],unitVersionId:fork.id}]};
   assert.equal((await post(`/api/v1/admin/builder/courses/${a}/preflight`,duplicateLogical,authorCookie)).json().valid,false);
   assert.equal((await post(`/api/v1/admin/courses/${a}/releases`,duplicateLogical)).statusCode,422);
@@ -68,7 +68,7 @@ test('M4 builder scopes authors, edits drafts, preserves published versions and 
   assert.equal((await post(`/api/v1/admin/builder/courses/${a}/preflight`,missingMedia,authorCookie)).json().valid,false);
   assert.equal((await post(`/api/v1/admin/courses/${a}/releases`,missingMedia)).statusCode,422);
   const feedback=(await post('/api/v1/admin/builder/units',{chapterId:chapter,kind:'exercise',title:'Feedback policy QA',required:true,completionPolicy:'feedback_then_continue'},authorCookie)).json();
-  assert.equal((await post(`/api/v1/admin/builder/unit-versions/${feedback.version.id}/ready`,{},authorCookie)).statusCode,200);
+  assert.equal((await post(`/api/v1/admin/builder/unit-versions/${feedback.version.id}/ready`,{revision:0},authorCookie)).statusCode,200);
   const feedbackSelection={units:[{unitVersionId:feedback.version.id,required:true,content:'',mediaAssetIds:[],conditions:[]}]};
   assert.equal((await post(`/api/v1/admin/builder/courses/${a}/preflight`,feedbackSelection,authorCookie)).json().valid,false);
   assert.equal((await post(`/api/v1/admin/courses/${a}/releases`,feedbackSelection)).statusCode,422);

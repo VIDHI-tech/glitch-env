@@ -217,12 +217,13 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
   }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
  });
  app.post<{Params:{id:string}}>('/api/v1/admin/builder/unit-versions/:id/ready',async(request,reply)=>{
+  const expected=z.object({revision:z.int().nonnegative()}).safeParse(request.body);if(!expected.success)return failure(reply,422,'Current draft revision required');
   if(!uuid.safeParse(request.params.id).success)return failure(reply,404,'Version unavailable');const v=await pool.query('SELECT unit_id FROM learning_unit_versions WHERE id=$1',[request.params.id]);
   if(!v.rowCount)return failure(reply,404,'Version unavailable');const courseId=await courseForUnit(v.rows[0].unit_id);
   if(!courseId)return failure(reply,404,'Version unavailable');if(!await guardedCourse(request,reply,courseId))return;
   const c=await pool.connect();try{await c.query('BEGIN');await c.query('SELECT id FROM courses WHERE id=$1 FOR UPDATE',[courseId]);
-   const r=await c.query("UPDATE learning_unit_versions SET publication_state='ready_for_review',revision=revision+1 WHERE id=$1 AND publication_state IN ('draft','ready_for_review') RETURNING id,publication_state,revision",[request.params.id]);
-   if(!r.rowCount){await c.query('ROLLBACK');return failure(reply,409,'Published version is immutable');}
+   const r=await c.query("UPDATE learning_unit_versions SET publication_state='ready_for_review',revision=revision+1 WHERE id=$1 AND revision=$2 AND publication_state IN ('draft','ready_for_review') RETURNING id,publication_state,revision",[request.params.id,expected.data.revision]);
+   if(!r.rowCount){await c.query('ROLLBACK');return failure(reply,409,'Draft changed or is published. Reload current content before marking ready.');}
    await c.query('COMMIT');return r.rows[0];
   }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
  });

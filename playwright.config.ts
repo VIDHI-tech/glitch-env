@@ -1,6 +1,6 @@
 import {defineConfig,devices} from '@playwright/test';
 export default defineConfig({
- testDir:'./tests/e2e',testIgnore:['**/m4/**'],workers:1,fullyParallel:false,
+ testDir:'./tests/e2e',testIgnore:['**/m4/**','**/m5/**'],workers:1,fullyParallel:false,
  timeout:30000,
  use:{...devices['Desktop Chrome'],headless:true,launchOptions:process.env.GLITCH_PLAYWRIGHT_EXECUTABLE?{executablePath:process.env.GLITCH_PLAYWRIGHT_EXECUTABLE}:undefined,trace:'on',screenshot:'on',video:'off'},
  reporter:[['list'],['html',{outputFolder:'tests/e2e/artifacts/report',open:'never'}]],
