@@ -29,6 +29,7 @@ export const learningUnitVersions=pgTable('learning_unit_versions',{
   id:uuid('id').primaryKey().defaultRandom(),unitId:uuid('unit_id').notNull().references(()=>learningUnits.id),
   version:integer('version').notNull(),title:text('title').notNull(),description:text('description').notNull().default(''),
   content:text('content').notNull().default(''),
+  revision:integer('revision').notNull().default(0),
   learningObjective:text('learning_objective').notNull().default(''),required:boolean('required').notNull().default(true),
   publicationState:text('publication_state',{enum:['draft','ready_for_review','published','unpublished','archived']}).notNull().default('draft'),
   createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()

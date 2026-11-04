@@ -7,7 +7,7 @@ const screenshots=resolve('docs/qa');
 const password='GlitchQaOnly2026!';
 test('complete M4 admin workflow through the real interface',async({page},testInfo)=>{
  mkdirSync(screenshots,{recursive:true});
- const failures:string[]=[];page.on('pageerror',e=>failures.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('404 (Not Found)'))failures.push(m.text())});page.on('requestfailed',r=>{if(r.failure()?.errorText!=='net::ERR_ABORTED')failures.push(`${r.failure()?.errorText} ${r.url()}`)});page.on('response',r=>{if(r.status()>=500)failures.push(`${r.status()} ${r.url()}`)});
+ const failures:string[]=[];page.on('pageerror',e=>failures.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('404 (Not Found)')&&!m.text().includes('409 (Conflict)'))failures.push(m.text())});page.on('requestfailed',r=>{if(r.failure()?.errorText!=='net::ERR_ABORTED')failures.push(`${r.failure()?.errorText} ${r.url()}`)});page.on('response',r=>{if(r.status()>=500)failures.push(`${r.status()} ${r.url()}`)});
  await page.goto('/');
  await expect(page.getByRole('heading',{name:'Sign in to GLITCH'})).toBeVisible();
  await page.getByRole('textbox',{name:'Email'}).fill('admin@glitch.local');
@@ -22,6 +22,9 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  await page.getByRole('textbox',{name:'Description'}).fill('TEST-ONLY browser fixture. Not finalized curriculum.');
  await page.getByRole('button',{name:'Create course ↗'}).click();
  await expect(page.getByRole('heading',{name:courseTitle,exact:true})).toBeVisible();
+ await page.getByRole('combobox',{name:'Assign content administrator'}).selectOption({label:'QA Content Admin · content@glitch.local'});
+ await page.getByRole('button',{name:'Assign author'}).click();
+ await expect(page.getByText('QA Content Admin · content@glitch.local')).toBeVisible();
  const courseId=await page.evaluate(async(title)=>{const r=await fetch('/api/v1/admin/builder/courses');const all=await r.json();return all.find((x:{title:string})=>x.title===title).id as string},courseTitle);
  await page.getByRole('textbox',{name:'New week title'}).fill('Week 1 · Discovery & sense-making');
  await page.getByRole('button',{name:'Add week'}).click();
@@ -46,6 +49,14 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  await page.getByLabel('Completion policy').selectOption('submit_to_complete');
  await page.getByRole('button',{name:'Save draft'}).click();
  await expect(page.getByText('Unit draft saved.')).toBeVisible();
+ const edited=await page.evaluate(async()=>{const r=await fetch('/api/v1/admin/builder/courses');const courses=await r.json();const detail=await (await fetch(`/api/v1/admin/builder/courses/${courses[0].id}`)).json();return detail.versions.find((v:{title:string})=>v.title==='QA practice · Observation versus interpretation')});
+ const competing=await page.request.patch(`/api/v1/admin/builder/unit-versions/${edited.id}`,{headers:{origin:'http://127.0.0.1:5173'},data:{title:edited.title,description:edited.description,learningObjective:edited.learning_objective,content:'Updated by another editor',required:edited.required,completionPolicy:'submit_to_complete',prompt:'QA concurrent change',revision:edited.revision}});
+ expect(competing.status()).toBe(200);
+ await page.getByRole('textbox',{name:'Content / instructions'}).fill('Stale local content');
+ await page.getByRole('button',{name:'Save draft'}).click();
+ await expect(page.getByText('Another editor saved this draft. Reload the latest content before editing.')).toBeVisible();
+ await page.getByRole('button',{name:'Reload current content'}).click();
+ await expect(page.getByRole('textbox',{name:'Content / instructions'})).toHaveValue('Updated by another editor');
  await page.screenshot({path:resolve(screenshots,'m4-unit-editor.png'),fullPage:true});
  await page.getByRole('button',{name:'Mark ready'}).click();
  await expect(page.getByText('Version marked ready.')).toBeVisible();
@@ -64,6 +75,10 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  await expect(mediaRow).toContainText('ready',{timeout:60000});
  await page.getByRole('button',{name:'Mark ready'}).click();
  await page.getByRole('combobox',{name:'Prerequisite for QA practice · Observation versus interpretation'}).selectOption({label:'QA draft video'});
+ await page.reload();
+ await page.getByRole('navigation',{name:'Admin navigation'}).getByRole('button',{name:'Course library'}).click();
+ await page.getByRole('button',{name:new RegExp(courseTitle)}).click();
+ await expect(page.getByRole('combobox',{name:'Prerequisite for QA practice · Observation versus interpretation'})).toHaveValue(await page.evaluate(async(id)=>{const d=await (await fetch(`/api/v1/admin/builder/courses/${id}`)).json();return d.units.find((u:{kind:string})=>u.kind==='video').id},courseId));
  await page.getByRole('button',{name:'Run publication checklist'}).click();
  await expect(page.getByText('Ready to publish')).toBeVisible();
  await page.screenshot({path:resolve(screenshots,'m4-preview.png'),fullPage:true});
@@ -81,6 +96,8 @@ test('complete M4 admin workflow through the real interface',async({page},testIn
  await page.getByRole('button',{name:'Progress'}).click();
  await expect(page.getByText('INDIVIDUAL PROGRESS')).toBeVisible();
  await page.screenshot({path:resolve(screenshots,'m4-students.png'),fullPage:true});
+ await page.getByRole('navigation',{name:'Admin navigation'}).getByRole('button',{name:'Course builder'}).click();
+ await page.getByText('QA Content Admin · content@glitch.local').locator('..').getByRole('button',{name:'Remove'}).click();
  await page.getByRole('button',{name:'Sign out'}).click();
  await expect(page.getByRole('heading',{name:'Sign in to GLITCH'})).toBeVisible();
  await page.getByRole('textbox',{name:'Email'}).fill('content@glitch.local');

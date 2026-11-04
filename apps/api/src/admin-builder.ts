@@ -3,6 +3,7 @@ import {fromNodeHeaders} from 'better-auth/node';
 import {z} from 'zod';
 import type {createAuth} from './auth.js';
 import type {createDatabase} from '@glitch/db';
+import {publicationInput,validatePublication} from './publication-validation.js';
 
 type DB=ReturnType<typeof createDatabase>;
 type Auth=ReturnType<typeof createAuth>;
@@ -14,10 +15,9 @@ const kind=z.enum(['video','exercise','feedback','reflection','handover']);
 const policy=z.enum(['submit_to_complete','feedback_then_continue','instructor_approval','revision_required']);
 const hierarchyType=z.enum(['weeks','days','chapters']);
 const hierarchyInput=z.object({parentId:uuid,title,activeMinutes:z.int().nonnegative().max(1440).optional()});
-const versionInput=z.object({title,description:description.default(''),learningObjective:description.default(''),required:z.boolean().default(true),content:content.default(''),completionPolicy:policy.optional(),prompt:content.optional()});
+const versionInput=z.object({title,description:description.default(''),learningObjective:description.default(''),required:z.boolean().default(true),content:content.default(''),completionPolicy:policy.optional(),prompt:content.optional(),revision:z.int().nonnegative().optional()});
 const unitInput=versionInput.extend({chapterId:uuid,kind});
 const courseInput=z.object({title,description:description.default('')});
-const previewInput=z.object({units:z.array(z.object({unitVersionId:uuid,required:z.boolean(),content,mediaAssetIds:z.array(uuid).default([]),conditions:z.array(z.object({prerequisiteIndex:z.int().nonnegative(),type:z.enum(['completed','first_attempt_submitted','review_approved'])})).default([])})).min(1).max(500)});
 const failure=(reply:FastifyReply,status:number,message:string)=>reply.code(status).send({code:status===401?'UNAUTHENTICATED':status===403?'FORBIDDEN':status===404?'NOT_FOUND':status===409?'CONFLICT':'INVALID_INPUT',message});
 const hierarchy:{[key:string]:{table:string,parent:string}}={
  weeks:{table:'weeks',parent:'course_id'},
@@ -25,7 +25,7 @@ const hierarchy:{[key:string]:{table:string,parent:string}}={
  chapters:{table:'chapters',parent:'day_id'}
 };
 
-export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:Auth){
+export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:Auth,requiresVideoAsset=false){
  const {pool}=database;
  async function actor(request:FastifyRequest,reply:FastifyReply){
   const session=await auth.api.getSession({headers:fromNodeHeaders(request.headers)});
@@ -57,12 +57,14 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
    pool.query('SELECT d.id,d.week_id,d.position,d.title,d.active_minutes FROM days d JOIN weeks w ON w.id=d.week_id WHERE w.course_id=$1 ORDER BY w.position,d.position',[courseId]),
    pool.query('SELECT c.id,c.day_id,c.position,c.title FROM chapters c JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE w.course_id=$1 ORDER BY w.position,d.position,c.position',[courseId]),
    pool.query('SELECT u.id,u.chapter_id,u.position,u.kind FROM learning_units u JOIN chapters c ON c.id=u.chapter_id JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE w.course_id=$1 ORDER BY w.position,d.position,c.position,u.position',[courseId]),
-   pool.query('SELECT v.id,v.unit_id,v.version,v.title,v.description,v.content,v.learning_objective,v.required,v.publication_state FROM learning_unit_versions v JOIN learning_units u ON u.id=v.unit_id JOIN chapters c ON c.id=u.chapter_id JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE w.course_id=$1 ORDER BY v.version DESC',[courseId]),
+   pool.query('SELECT v.id,v.unit_id,v.version,v.revision,v.title,v.description,v.content,v.learning_objective,v.required,v.publication_state FROM learning_unit_versions v JOIN learning_units u ON u.id=v.unit_id JOIN chapters c ON c.id=u.chapter_id JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE w.course_id=$1 ORDER BY v.version DESC',[courseId]),
    pool.query('SELECT x.unit_version_id,x.completion_policy,x.prompt FROM exercise_definitions x JOIN learning_unit_versions v ON v.id=x.unit_version_id JOIN learning_units u ON u.id=v.unit_id JOIN chapters c ON c.id=u.chapter_id JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE w.course_id=$1',[courseId]),
    pool.query("SELECT m.id,m.unit_version_id,m.kind,m.state,m.video_provider,m.duration_seconds,m.failure_reason,m.mime_type FROM media_assets m JOIN learning_unit_versions v ON v.id=m.unit_version_id JOIN learning_units u ON u.id=v.unit_id JOIN chapters c ON c.id=u.chapter_id JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id WHERE w.course_id=$1 AND m.kind IN ('stream_video','r2_resource') ORDER BY m.created_at DESC",[courseId]),
    pool.query('SELECT id,release_number,state,published_at FROM curriculum_releases WHERE course_id=$1 ORDER BY release_number DESC',[courseId])
   ]);
-  return {course:c.rows[0],weeks:weeks.rows,days:days.rows,chapters:chapters.rows,units:units.rows,versions:versions.rows,definitions:definitions.rows,media:media.rows,releases:releases.rows};
+  const saved=await pool.query('SELECT unit_id,prerequisite_unit_id,condition_type FROM course_draft_prerequisites WHERE course_id=$1',[courseId]);
+  const prerequisites=Object.fromEntries(saved.rows.map(x=>[x.unit_id,{unitId:x.prerequisite_unit_id,type:x.condition_type}]));
+  return {course:c.rows[0],weeks:weeks.rows,days:days.rows,chapters:chapters.rows,units:units.rows,versions:versions.rows,definitions:definitions.rows,media:media.rows,releases:releases.rows,prerequisites};
  }
  app.get('/api/v1/admin/builder/me',async(request,reply)=>{
   const who=await actor(request,reply);if(!who)return;
@@ -92,6 +94,23 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
   if(!target.rowCount||!c.rowCount)return failure(reply,404,'Course or content administrator unavailable');
   await pool.query('INSERT INTO course_author_assignments(user_id,course_id,assigned_by) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[p.data.userId,request.params.id,who]);
   return {ok:true};
+ });
+ app.get<{Params:{id:string}}>('/api/v1/admin/builder/courses/:id/authors',async(request,reply)=>{
+  const who=await actor(request,reply);if(!who)return;if(!await superAdmin(who))return failure(reply,403,'Super administrator required');
+  const r=await pool.query("SELECT u.id,u.name,u.email,a.course_id IS NOT NULL assigned FROM \"user\" u JOIN user_role_assignments role ON role.user_id=u.id AND role.role='content_admin' LEFT JOIN course_author_assignments a ON a.user_id=u.id AND a.course_id=$1 ORDER BY u.name",[request.params.id]);return r.rows;
+ });
+ app.delete<{Params:{id:string;userId:string}}>('/api/v1/admin/builder/courses/:id/authors/:userId',async(request,reply)=>{
+  const who=await actor(request,reply);if(!who)return;if(!await superAdmin(who))return failure(reply,403,'Super administrator required');
+  await pool.query('DELETE FROM course_author_assignments WHERE course_id=$1 AND user_id=$2',[request.params.id,request.params.userId]);return {ok:true};
+ });
+ app.put<{Params:{id:string;unitId:string}}>('/api/v1/admin/builder/courses/:id/prerequisites/:unitId',async(request,reply)=>{
+  if(!await guardedCourse(request,reply,request.params.id))return;
+  const p=z.object({prerequisiteUnitId:uuid.nullable(),type:z.enum(['completed','first_attempt_submitted','review_approved'])}).safeParse(request.body);
+  if(!p.success)return failure(reply,422,'Invalid prerequisite');
+  const own=await courseForUnit(request.params.unitId),pre=p.data.prerequisiteUnitId?await courseForUnit(p.data.prerequisiteUnitId):null;
+  if(own!==request.params.id||p.data.prerequisiteUnitId&&(pre!==own||p.data.prerequisiteUnitId===request.params.unitId))return failure(reply,422,'Prerequisite must belong to this course');
+  if(!p.data.prerequisiteUnitId){await pool.query('DELETE FROM course_draft_prerequisites WHERE course_id=$1 AND unit_id=$2',[request.params.id,request.params.unitId]);return {ok:true};}
+  await pool.query('INSERT INTO course_draft_prerequisites(course_id,unit_id,prerequisite_unit_id,condition_type) VALUES($1,$2,$3,$4) ON CONFLICT(course_id,unit_id) DO UPDATE SET prerequisite_unit_id=$3,condition_type=$4',[request.params.id,request.params.unitId,p.data.prerequisiteUnitId,p.data.type]);return {ok:true};
  });
  app.post<{Params:{type:string}}>('/api/v1/admin/builder/hierarchy/:type',async(request,reply)=>{
   const type=hierarchyType.safeParse(request.params.type);const p=hierarchyInput.safeParse(request.body);
@@ -177,10 +196,11 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
   if(!courseId)return failure(reply,404,'Version unavailable');if(!await guardedCourse(request,reply,courseId))return;
   if(v.rows[0].kind==='exercise'&&!p.data.completionPolicy)return failure(reply,422,'Exercise policy required');
   const c=await pool.connect();try{await c.query('BEGIN');
-   const locked=await c.query('SELECT publication_state FROM learning_unit_versions WHERE id=$1 FOR UPDATE',[request.params.id]);
+   const locked=await c.query('SELECT publication_state,revision FROM learning_unit_versions WHERE id=$1 FOR UPDATE',[request.params.id]);
    const pinned=await c.query('SELECT 1 FROM curriculum_release_units WHERE unit_version_id=$1',[request.params.id]);
    if(!['draft','ready_for_review'].includes(locked.rows[0].publication_state)||pinned.rowCount){await c.query('ROLLBACK');return failure(reply,409,'Published or pinned version is immutable');}
-   const updated=await c.query("UPDATE learning_unit_versions SET title=$1,description=$2,content=$3,learning_objective=$4,required=$5,publication_state='draft' WHERE id=$6 RETURNING *",[p.data.title,p.data.description,p.data.content,p.data.learningObjective,p.data.required,request.params.id]);
+   if(p.data.revision===undefined||p.data.revision!==locked.rows[0].revision){await c.query('ROLLBACK');return failure(reply,409,'Draft changed since you opened it. Reload current content before saving.');}
+   const updated=await c.query("UPDATE learning_unit_versions SET title=$1,description=$2,content=$3,learning_objective=$4,required=$5,publication_state='draft',revision=revision+1 WHERE id=$6 RETURNING *",[p.data.title,p.data.description,p.data.content,p.data.learningObjective,p.data.required,request.params.id]);
    if(v.rows[0].kind==='exercise')await c.query('UPDATE exercise_definitions SET completion_policy=$1,prompt=$2 WHERE unit_version_id=$3',[p.data.completionPolicy,p.data.prompt??'',request.params.id]);
    await c.query('COMMIT');return updated.rows[0];
   }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
@@ -210,23 +230,10 @@ export function registerAdminBuilderRoutes(app:FastifyInstance,database:DB,auth:
  });
  app.post<{Params:{id:string}}>('/api/v1/admin/builder/courses/:id/preflight',async(request,reply)=>{
   if(!await guardedCourse(request,reply,request.params.id))return;
-  const p=previewInput.safeParse(request.body);if(!p.success)return failure(reply,422,'Invalid publication selection');
-  const issues:string[]=[];const ids=p.data.units.map(x=>x.unitVersionId);
-  if(new Set(ids).size!==ids.length)issues.push('Select each version only once');
-  const versions=await pool.query("SELECT v.id,v.unit_id,v.publication_state,u.kind,x.completion_policy FROM learning_unit_versions v JOIN learning_units u ON u.id=v.unit_id JOIN chapters c ON c.id=u.chapter_id JOIN days d ON d.id=c.day_id JOIN weeks w ON w.id=d.week_id LEFT JOIN exercise_definitions x ON x.unit_version_id=v.id WHERE v.id=ANY($1::uuid[]) AND w.course_id=$2",[ids,request.params.id]);
-  const byId=new Map(versions.rows.map(x=>[x.id,x]));const logical=new Set<string>();
-  for(let i=0;i<p.data.units.length;i++){
-   const selection=p.data.units[i],v=byId.get(selection.unitVersionId);
-   if(!v){issues.push(`Unit ${i+1}: version is outside this course`);continue;}
-   if(logical.has(v.unit_id))issues.push(`Unit ${i+1}: duplicate learning unit`);logical.add(v.unit_id);
-   if(!['ready_for_review','published'].includes(v.publication_state))issues.push(`Unit ${i+1}: version is not ready`);
-   if(v.kind==='exercise'&&!v.completion_policy)issues.push(`Unit ${i+1}: exercise policy missing`);
-   if(v.kind==='video'&&!selection.mediaAssetIds.length)issues.push(`Unit ${i+1}: video media missing`);
-   for(const condition of selection.conditions)if(condition.prerequisiteIndex>=i)issues.push(`Unit ${i+1}: prerequisite must come earlier`);
-  }
-  const assets=p.data.units.flatMap(x=>x.mediaAssetIds);
-  if(assets.length){const media=await pool.query("SELECT id,unit_version_id,state,kind,duration_seconds FROM media_assets WHERE id=ANY($1::uuid[])",[assets]);const mediaById=new Map(media.rows.map(x=>[x.id,x]));for(const selection of p.data.units)for(const assetId of selection.mediaAssetIds){const a=mediaById.get(assetId);if(!a||a.unit_version_id!==selection.unitVersionId||a.state!=='ready')issues.push('Media must be ready and assigned to its selected version');}}
-  return {valid:issues.length===0,issues,unitCount:p.data.units.length};
+  const p=publicationInput.safeParse(request.body);if(!p.success)return failure(reply,422,'Invalid publication selection');
+  const sharedIssues=await validatePublication(pool,request.params.id,p.data,requiresVideoAsset);
+  return {valid:sharedIssues.length===0,issues:sharedIssues,unitCount:p.data.units.length};
+
  });
  app.get<{Params:{id:string}}>('/api/v1/admin/builder/courses/:id/students',async(request,reply)=>{
   const who=await guardedCourse(request,reply,request.params.id);if(!who)return;
