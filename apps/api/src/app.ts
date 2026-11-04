@@ -8,6 +8,7 @@ import { registerWorkspaceRoutes } from './workspace.js';
 import { registerLearningRoutes } from './learning.js';
 import {registerMediaRoutes} from './media.js';
 import {registerAdminBuilderRoutes} from './admin-builder.js';
+import {registerStudentExperienceRoutes} from './student-experience.js';
 import type {MediaProvider} from './media-provider.js';
 import {configuredMediaServices,singleMediaServices,type MediaServices} from './media-services.js';
 export function buildApp(options:{databaseUrl?:string;secret?:string;origin?:string;mailer?:Mailer;clock?:()=>number;mediaProvider?:MediaProvider;mediaServices?:MediaServices;webhookSecret?:string}={}) {
@@ -46,7 +47,7 @@ export function buildApp(options:{databaseUrl?:string;secret?:string;origin?:str
     if(!session)return reply.code(401).send({code:'UNAUTHENTICATED',message:'Sign in to continue'});
     return {id:session.user.id,name:session.user.name,email:session.user.email};
   });
-  if(database&&auth){const mediaServices=options.mediaServices??(options.mediaProvider?singleMediaServices(options.mediaProvider):configuredMediaServices());registerWorkspaceRoutes(app,database,auth);registerAdminBuilderRoutes(app,database,auth,mediaServices.hasVideo);registerLearningRoutes(app,database,auth,options.clock,mediaServices);registerMediaRoutes(app,database,auth,mediaServices,options.webhookSecret??process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET,options.clock);}
+  if(database&&auth){const mediaServices=options.mediaServices??(options.mediaProvider?singleMediaServices(options.mediaProvider):configuredMediaServices());registerWorkspaceRoutes(app,database,auth);registerAdminBuilderRoutes(app,database,auth,mediaServices.hasVideo);registerLearningRoutes(app,database,auth,options.clock,mediaServices);registerStudentExperienceRoutes(app,database,auth);registerMediaRoutes(app,database,auth,mediaServices,options.webhookSecret??process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET,options.clock);}
   app.addHook('onClose',async()=>{await database?.pool.end();});
   return app;
 }

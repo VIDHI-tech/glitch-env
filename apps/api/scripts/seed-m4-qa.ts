@@ -47,8 +47,8 @@ try{
   const chapter2=(await post('/api/v1/admin/builder/hierarchy/chapters',{parentId:day2.id,title:'Evidence quality and provenance'},cookie)).json();
   const exercise=(await post('/api/v1/admin/builder/units',{chapterId:chapter1.id,kind:'exercise',title:'QA practice · Observation versus interpretation',description:'TEST-ONLY fixture',learningObjective:'Distinguish an observation from an interpretation',content:'QA FIXTURE — use an observation and an interpretation from a test scenario. This is not finalized GLITCH teaching material.',required:true,completionPolicy:'submit_to_complete',prompt:'QA FIXTURE — write one observation and one interpretation.'},cookie)).json();
   const reflection=(await post('/api/v1/admin/builder/units',{chapterId:chapter2.id,kind:'reflection',title:'QA reflection · Evidence quality',description:'TEST-ONLY fixture',learningObjective:'Reflect on evidence quality',content:'QA FIXTURE — reflect on the evidence used in the test exercise.',required:true},cookie)).json();
-  await post(`/api/v1/admin/builder/unit-versions/${exercise.version.id}/ready`,{},cookie);
-  await post(`/api/v1/admin/builder/unit-versions/${reflection.version.id}/ready`,{},cookie);
+  await post(`/api/v1/admin/builder/unit-versions/${exercise.version.id}/ready`,{revision:0},cookie);
+  await post(`/api/v1/admin/builder/unit-versions/${reflection.version.id}/ready`,{revision:0},cookie);
   const release=(await post(`/api/v1/admin/courses/${c.id}/releases`,{units:[{unitVersionId:exercise.version.id,content:'QA FIXTURE — practice exercise',required:true},{unitVersionId:reflection.version.id,content:'QA FIXTURE — reflection',required:true,conditions:[{prerequisiteIndex:0,type:'completed'}]}]},cookie)).json();
   await post('/api/v1/admin/builder/units',{chapterId:chapter1.id,kind:'video',title:'QA draft · Observation versus interpretation',description:'TEST-ONLY video placeholder',learningObjective:'Observe before interpreting',content:'QA FIXTURE — upload a test MP4. No finalized video content is supplied.',required:true},cookie);
   await post('/api/v1/admin/staff-assignments',{staffId:instructor,studentId:studentA,courseId:c.id},cookie);
