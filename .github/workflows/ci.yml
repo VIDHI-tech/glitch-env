@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/m0-baseline-architecture, feat/m1-foundation, feat/m2-learning-engine, feat/m3-media-infrastructure, feat/m4-admin-course-builder]
+    branches: [main, feat/m0-baseline-architecture, feat/m1-foundation, feat/m2-learning-engine, feat/m3-media-infrastructure, feat/m4-admin-course-builder, feat/m5-student-learning-experience]
   pull_request:
 
 jobs:
@@ -43,6 +43,7 @@ jobs:
       - run: pnpm test:m2:integration
       - run: pnpm test:m3:integration
       - run: pnpm test:m4:integration
+      - run: pnpm test:m5:integration
       - run: npm run check
       - run: npm test
       - run: pnpm exec playwright install --with-deps chromium
@@ -67,7 +68,7 @@ jobs:
         run: docker compose -f compose.media-dev.yml -f compose.media-ci.yml logs --no-color --tail=200
       - if: always()
         run: docker compose -f compose.media-dev.yml -f compose.media-ci.yml down -v --remove-orphans
-  m4-browser-integration:
+  m4-m5-browser-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -88,11 +89,14 @@ jobs:
           M4_QA_SEED: '1'
           DATABASE_URL: postgresql://glitch:local_dev_only@127.0.0.1:55433/glitch_m4_qa
       - run: pnpm test:m4:e2e
+      - run: pnpm test:m5:e2e
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: m4-browser-screenshots
-          path: docs/qa/m4-*.png
+          name: m4-m5-browser-screenshots
+          path: |
+            docs/qa/m4-*.png
+            docs/qa/m5-*.png
           if-no-files-found: ignore
       - if: always()
         run: docker compose -f compose.media-dev.yml -f compose.m4-qa.yml logs --no-color --tail=150

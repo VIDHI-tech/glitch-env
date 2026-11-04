@@ -20,6 +20,7 @@
     "test:m2:integration": "pnpm --filter @glitch/api test:m2:integration",
     "test:m3:integration": "pnpm --filter @glitch/api test:m3:integration",
     "test:m4:integration": "pnpm --filter @glitch/api test:m4:integration",
+    "test:m5:integration": "pnpm --filter @glitch/api test:m5:integration",
     "test:m4:e2e": "playwright test -c playwright.m4.config.ts",
     "test:m5:e2e": "playwright test -c playwright.m5.config.ts"
   },
