@@ -28,15 +28,20 @@ test('M5 student work, notes, progress and review queue are isolated by account'
   assert.equal((await post('/api/v1/admin/staff-assignments',{staffId:instructor.id,studentId:a.id,courseId:course.id})).statusCode,200);
   assert.equal((await req('PUT',`/api/v1/release-units/${unitId}/note`,{body:'A private observation',revision:0},aCookie)).statusCode,200);
   assert.equal((await req('PUT',`/api/v1/release-units/${unitId}/exercise-draft`,{answer:'A first draft',revision:0},aCookie)).statusCode,200);
+  assert.equal((await req('PUT',`/api/v1/release-units/${unitId}/note`,{body:'Stale overwrite',revision:0},aCookie)).statusCode,409);
+  assert.equal((await req('PUT',`/api/v1/release-units/${unitId}/exercise-draft`,{answer:'Stale overwrite',revision:0},aCookie)).statusCode,409);
   const workA=(await get('/api/v1/student/work',aCookie)).json(),workB=(await get('/api/v1/student/work',bCookie)).json();assert.equal(workA.notes[0].body,'A private observation');assert.equal(workA.drafts[0].answer,'A first draft');assert.equal(workB.notes.length,0);assert.equal(workB.drafts.length,0);
   const detailB=(await get(`/api/v1/release-units/${unitId}`,bCookie)).json();assert.equal(detailB.note,null);assert.equal(detailB.draft,null);
   const submission=await post(`/api/v1/release-units/${unitId}/attempts`,{answer:'A submitted answer'},aCookie);assert.equal(submission.statusCode,201,submission.body);
+  const bSubmission=await post(`/api/v1/release-units/${unitId}/attempts`,{answer:'B submitted answer'},bCookie);assert.equal(bSubmission.statusCode,201,bSubmission.body);
   const queue=(await get('/api/v1/instructor/work',instructorCookie)).json();assert.equal(queue.reviews.length,1);assert.equal(queue.reviews[0].student_id,a.id);
+  assert.equal((await post(`/api/v1/instructor/attempts/${bSubmission.json().id}/review`,{decision:'completed',message:'Unauthorized review'},instructorCookie)).statusCode,404);
   assert.equal((await get('/api/v1/instructor/work',bCookie)).statusCode,403);
-  assert.equal((await get(`/api/v1/release-units/${unitId}/attempts`,bCookie)).json().length,0);
+  const bAttempts=(await get(`/api/v1/release-units/${unitId}/attempts`,bCookie)).json();assert.equal(bAttempts.length,1);assert.equal(bAttempts[0].answer,'B submitted answer');
   const aEnrollment=(await get('/api/v1/enrollments',aCookie)).json()[0],bEnrollment=(await get('/api/v1/enrollments',bCookie)).json()[0];assert.equal((await get(`/api/v1/enrollments/${aEnrollment.id}/roadmap`,bCookie)).statusCode,404);
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment.id}/roadmap`,aCookie)).json().percent,0);assert.equal((await get(`/api/v1/enrollments/${bEnrollment.id}/roadmap`,bCookie)).json().percent,0);
   assert.equal((await post(`/api/v1/instructor/attempts/${submission.json().id}/review`,{decision:'completed',message:'Approved'},instructorCookie)).statusCode,200);
+  assert.equal((await post(`/api/v1/instructor/attempts/${submission.json().id}/review`,{decision:'completed',message:'Duplicate'},instructorCookie)).statusCode,409);
   assert.equal((await get(`/api/v1/enrollments/${aEnrollment.id}/roadmap`,aCookie)).json().percent,100);assert.equal((await get(`/api/v1/enrollments/${bEnrollment.id}/roadmap`,bCookie)).json().percent,0);
  }finally{await app?.close();await db.pool.end();await admin.query(`DROP DATABASE IF EXISTS ${name}`);await admin.end();}
 });

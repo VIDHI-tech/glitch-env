@@ -16,3 +16,5 @@ packages/*/node_modules/
 /tests/e2e/artifacts/results/
 /tests/e2e/artifacts/m4-report/
 /tests/e2e/artifacts/m4-results/
+/tests/e2e/artifacts/m5-report/
+/tests/e2e/artifacts/m5-results/
