@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/m0-baseline-architecture, feat/m1-foundation, feat/m2-learning-engine, feat/m3-media-infrastructure]
+    branches: [main, feat/m0-baseline-architecture, feat/m1-foundation, feat/m2-learning-engine, feat/m3-media-infrastructure, feat/m4-admin-course-builder]
   pull_request:
 
 jobs:
@@ -42,6 +42,7 @@ jobs:
       - run: pnpm test:m1:integration
       - run: pnpm test:m2:integration
       - run: pnpm test:m3:integration
+      - run: pnpm test:m4:integration
       - run: npm run check
       - run: npm test
       - run: pnpm exec playwright install --with-deps chromium
@@ -66,3 +67,34 @@ jobs:
         run: docker compose -f compose.media-dev.yml -f compose.media-ci.yml logs --no-color --tail=200
       - if: always()
         run: docker compose -f compose.media-dev.yml -f compose.media-ci.yml down -v --remove-orphans
+  m4-browser-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: docker compose -f compose.media-dev.yml -f compose.m4-qa.yml up --build -d
+      - run: pnpm --filter @glitch/api exec tsx scripts/seed-m4-qa.ts
+        env:
+          M4_QA_SEED: '1'
+          DATABASE_URL: postgresql://glitch:local_dev_only@127.0.0.1:55433/glitch_m4_qa
+      - run: pnpm test:m4:e2e
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m4-browser-screenshots
+          path: docs/qa/m4-*.png
+          if-no-files-found: ignore
+      - if: always()
+        run: docker compose -f compose.media-dev.yml -f compose.m4-qa.yml logs --no-color --tail=150
+      - if: always()
+        run: docker compose -f compose.media-dev.yml -f compose.m4-qa.yml down -v --remove-orphans
